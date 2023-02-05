@@ -30,12 +30,28 @@ Inputs to this class are 3-dimensional tensors of shape (B, T, C), where B is th
 The output of the Head class is also a 3-dimensional tensor of the same shape.
 
 A class named "MultiHeadAttention" is defined to implement multiple heads of self-attention in parallel. The class has a list of heads, each implemented as an instance of the "Head" class.
-The MultiHeadAttention class is a container class that concatenates the outputs of multiple Head instances. This is used to perform multiple self-attention operations in parallel. The class has a list of Head objects and a linear projection layer followed by a dropout layer.
+The MultiHeadAttention class is a container class that concatenates the outputs of multiple Head instances. This is used to perform multiple self-attention operations in parallel.
+The class has a list of Head objects and a linear projection layer followed by a dropout layer.
 The forward method of this class applies all the Head instances to the input and concatenates their outputs. Finally, it applies the linear projection and dropout.
 Inputs to this class are 3-dimensional tensors of shape (B, T, C), where B is the batch size, T is the length of the input sequence and C is the size of the representation space.
 The output of the MultiHeadAttention class is a 3-dimensional tensor of shape (B, T, C), where C is the sum of the size of the representation spaces of all heads.
 
-The main class named "Transformer" is defined to implement the complete transformer model. The class has an embedding layer, several layers of MultiHeadAttention and position-wise feed-forward networks.
+The FeedForward class is a simple feedforward neural network with one hidden layer, followed by a ReLU activation function, and dropout.
+This network transforms its input to produce an output of the same size as the input.
+
+The Block class represents a Transformer block, which is a building block for Transformer architecture.
+A Transformer block consists of two key components: communication and computation.
+The Block class implements this by first performing multi-head self-attention through the MultiHeadAttention class, followed by feedforward computation through the FeedForward class.
+The output from each component is passed through a Layer Normalization layer before being combined with the input to the block, to ensure stable learning.
+
+The GPTLanguageModel class defines a transformer-based language model, which is a type of neural network for natural language processing tasks. Here's a step-by-step explanation:
+
+The class GPTLanguageModel is a subclass of nn.Module from the PyTorch library, which is a base class for creating neural network modules.
+In the __init__ method, several instance variables are created and defined. The first three input parameters, n_layer, n_head, and n_embd, define the number of transformer blocks, the number of attention heads, and the dimensionality of the embedding space, respectively.
+A number of nn.ModuleList objects are created and stored as instance variables. The first one, ln_f, is a list of layer normalization layers applied to the input, where ln_f is a function that returns an instance of a nn.LayerNorm layer.
+Another nn.ModuleList, h, is created, which will store instances of the Block class defined earlier.
+Finally, a FeedFoward layer is created and stored as an instance variable, which will be used in the forward pass of the model.
+In the forward method, the input, x, is passed through the layer normalization layers stored in ln_f, and then passed through each of the Block instances stored in h. Finally, the result is passed through the FeedFoward layer and returned as the output.
 
 The main loop for training is defined, where the model is trained for a specified number of maximum iterations. The model is evaluated every eval_interval iterations using the "estimate_loss" function. The optimizer is used to update the model parameters based on the computed gradients.
 
