@@ -1,7 +1,7 @@
 import torch
 
-from do_not_look import Head, MultiHeadAttention, FeedFoward, Block
-from oracle import Head as MyH, MultiHeadAttention as MyMulti, FeedForward, Block as MyB
+from sol import Head, MultiHeadAttention, FeedFoward, Block, GPTLanguageModel
+from oracle import Head as MyH, MultiHeadAttention as MyMulti, FeedForward, Block as MyB, Transformer
 
 
 def test_head():
@@ -75,8 +75,27 @@ def test_block():
     assert torch.allclose(actual, expected)
 
 
+def test_transformer():
+    torch.manual_seed(1337)
+    ak_transformer = GPTLanguageModel()
+
+    torch.manual_seed(1337)
+    my_transformer = Transformer()
+
+    input_idx = torch.randint(0, 128, (4, 6))
+
+    expected, _ = ak_transformer(input_idx)
+    actual = my_transformer(input_idx)
+
+    print(expected)
+    print(actual)
+
+    assert torch.allclose(actual, expected)
+
+
 if __name__ == '__main__':
-    test_head()
-    test_multihead()
-    test_feedforward()
-    test_block()
+    # test_head()
+    # test_multihead()
+    # test_feedforward()
+    # test_block()
+    test_transformer()
