@@ -117,11 +117,11 @@ class Transformer(nn.Module):
             emb = block(emb)  # (b, t, c)
         norm = self.layernorm(emb)  # (b, t, c)
         logits = self.linear(norm)  # (b, t, c) @ (c, v) -> (b, t, v)
-        if targets:
+        if targets is not None:
             # targets original shape = (b, t)
-
+            _, _, v = logits.shape
+            logits = logits.view(b * t, v)
+            targets = targets.view(b * t)
             loss = F.cross_entropy(logits, targets)
             return logits, loss
         return logits, None
-
-

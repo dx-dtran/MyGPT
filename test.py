@@ -83,14 +83,16 @@ def test_transformer():
     my_transformer = Transformer()
 
     input_idx = torch.randint(0, 128, (4, 6))
+    targets = torch.randint(0, 128, (4, 6))
 
-    expected, _ = ak_transformer(input_idx)
-    actual = my_transformer(input_idx)
+    expected, expected_loss = ak_transformer(input_idx, targets)
+    actual, actual_loss = my_transformer(input_idx, targets)
 
     print(expected)
     print(actual)
 
     assert torch.allclose(actual, expected)
+    assert torch.allclose(actual_loss, expected_loss)
 
 
 if __name__ == '__main__':
