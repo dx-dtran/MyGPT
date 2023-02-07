@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# quick hyper params
 # transformer
-batch_size = 8
-block_size = 8
-n_embd = 16
+batch_size = 16
+block_size = 32
+n_embd = 64
 n_head = 4
 n_layer = 4
 dropout = 0.0
@@ -13,10 +14,82 @@ dropout = 0.0
 # training
 max_iters = 5000
 eval_interval = 100
+eval_iters = 200
 learning_rate = 1e-3
 device = 'cpu'
 
+# transformer
+# batch_size = 16
+# block_size = 64
+# n_embd = 128
+# n_head = 8
+# n_layer = 8
+# dropout = 0.0
+#
+# # training
+# max_iters = 5000
+# eval_interval = 100
+# eval_iters = 200
+# learning_rate = 1e-3
+# device = 'cpu'
+
 torch.manual_seed(1337)
+
+with open('input.txt', 'r') as input_file:
+    input_data = input_file.read()
+
+unique_chars = set(input_data)
+unique_chars = sorted(list(unique_chars))
+vocab_size = len(unique_chars)
+
+atoi = {char: i for i, char in enumerate(unique_chars)}
+itoa = {i: char for i, char in enumerate(unique_chars)}
+
+
+def encode(data):
+    return [atoi[char] for char in data]
+
+
+def decode(indices):
+    return ''.join([itoa[i] for i in indices])
+
+
+data_tensor = torch.tensor(encode(input_data))
+
+n = int(len(data_tensor) * 0.9)
+
+train_data = data_tensor[:n]
+val_data = data_tensor[n:]
+
+
+def get_batch(split):
+    if split == 'train':
+        data = train_data
+    else:
+        data = val_data
+    x = []
+    y = []
+    for i in range(batch_size):
+        index = torch.randint(0, len(data) - block_size - 1, (1,))
+        x.append(data[index:index + block_size])
+        y.append(data[index + 1:index + block_size + 1])
+    x = torch.stack(x)
+    y = torch.stack(y)
+    return x, y
+
+
+def estimate_loss():
+    model.eval()
+    result = {}
+    for split in ['train', 'val']:
+        losses = torch.zeros(eval_iters)
+        for iteration in range(eval_iters):
+            x, y = get_batch(split)
+            _, loss = model(x, y)
+            losses[iteration] = loss
+        result[split] = losses.mean()
+    model.train()
+    return result
 
 
 class Head(nn.Module):
@@ -100,7 +173,7 @@ class Block(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size=128):
+    def __init__(self):
         super().__init__()
         self.token_embeddings = nn.Embedding(vocab_size, n_embd)
         self.positional_embeddings = nn.Embedding(block_size, n_embd)
@@ -117,11 +190,27 @@ class Transformer(nn.Module):
             emb = block(emb)  # (b, t, c)
         norm = self.layernorm(emb)  # (b, t, c)
         logits = self.linear(norm)  # (b, t, c) @ (c, v) -> (b, t, v)
+        _, _, v = logits.shape
         if targets is not None:
             # targets original shape = (b, t)
-            _, _, v = logits.shape
             logits = logits.view(b * t, v)
             targets = targets.view(b * t)
             loss = F.cross_entropy(logits, targets)
             return logits, loss
+        logits = logits.view(b * t, v)
         return logits, None
+
+    def generate(self, idx, max_new_tokens):
+        b, t = idx.shape
+        result = torch.zeros(1, max_new_tokens)
+        for i in range(max_new_tokens):
+            idx = idx[:, len(idx) - block_size:]  # (b, t)
+            logits, _ = self(idx)  # (b * t, v)
+            probs = F.softmax(logits, dim=1)  # (b * t, v)
+            index = torch.multinomial(probs[-1], 1)  # (b * t, v)
+            index = index.view(b, t)  # (b, t)
+            idx = torch.cat((idx, index), dim=1)
+            result[:, i] = index
+        return result
+
+
