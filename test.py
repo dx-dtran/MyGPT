@@ -88,16 +88,16 @@ def test_transformer():
     expected, expected_loss = ak_transformer(input_idx, targets)
     actual, actual_loss = my_transformer(input_idx, targets)
 
-    print(expected)
-    print(actual)
+    print(expected.shape)
+    print(actual.shape)
 
     assert torch.allclose(actual, expected)
     assert torch.allclose(actual_loss, expected_loss)
 
 
 if __name__ == '__main__':
-    # test_head()
-    # test_multihead()
-    # test_feedforward()
-    # test_block()
+    test_head()
+    test_multihead()
+    test_feedforward()
+    test_block()
     test_transformer()
