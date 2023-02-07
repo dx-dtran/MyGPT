@@ -1,7 +1,7 @@
 import torch
 
 from sol import Head, MultiHeadAttention, FeedFoward, Block, GPTLanguageModel
-from oracle import Head as MyH, MultiHeadAttention as MyMulti, FeedForward, Block as MyB, Transformer
+from mygpt import Head as MyH, MultiHeadAttention as MyMulti, FeedForward, Block as MyB, Transformer
 
 
 def test_head():
