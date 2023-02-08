@@ -1,7 +1,7 @@
 import torch
 
 from sol import Head, MultiHeadAttention, FeedFoward, Block, GPTLanguageModel
-from mygpt import Head as MyH, MultiHeadAttention as MyMulti, FeedForward, Block as MyB, Transformer
+from mygpt import SelfAttention as MyH, MultiSelfAttention as MyMulti, MultiLayerPerceptron, TransformerBlock as MyB, Transformer
 
 
 def test_head():
@@ -44,7 +44,7 @@ def test_feedforward():
     ak_feedforward = FeedFoward(16)
 
     torch.manual_seed(1337)
-    my_feedforward = FeedForward(16)
+    my_feedforward = MultiLayerPerceptron(16)
 
     input_data = torch.rand(3, 6, 16)
 
