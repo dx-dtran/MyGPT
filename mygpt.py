@@ -214,3 +214,21 @@ class Transformer(nn.Module):
         return result
 
 
+model = Transformer()
+model.to(device)
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+
+for iteration in range(max_iters):
+    if iteration % eval_interval == 0 or iteration == max_iters - 1:
+        losses = estimate_loss()
+        print("iteration: {} training loss: {:.3f} validation loss: {:.3f}".format(iteration, losses['train'], losses['val']))
+
+    x, y = get_batch('train')
+    _, loss = model(x, y)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+context = torch.tensor([[0]])
+print(decode(model.generate(context, max_new_tokens=1000)[0].tolist()))

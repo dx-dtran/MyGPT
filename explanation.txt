@@ -87,5 +87,14 @@ Next, the method samples one index from the distribution, and appends it to the 
 Finally, the method returns the resulting idx array, which represents the sequence of generated tokens.
 
 The main loop for training is defined, where the model is trained for a specified number of maximum iterations. The model is evaluated every eval_interval iterations using the "estimate_loss" function. The optimizer is used to update the model parameters based on the computed gradients.
-
+This code is a training loop for a transformer model in PyTorch.
+The first step creates an instance of the transformer model and moves it to the specified device (e.g. CPU or GPU).
+Then, the number of parameters in the model is printed in millions.
+Next, an optimizer (AdamW) is created for the model's parameters with a specified learning rate.
+The code then enters a loop where the loss of the model is estimated on the train and validation sets every "eval_interval" iterations, or on the final iteration.
+A batch of data is then sampled for training and the loss is computed using the model and the batch.
+The optimizer is then used to perform a weight update step, by zeroing the gradients, computing the gradient of the loss with respect to the model parameters, and updating the model parameters.
 The final loss on the validation set is computed and printed after the training loop is completed.
+
+Finally, the code generates text from the trained model by passing in a context (a starting sequence of tokens) to the "generate" method of the model.
+The resulting sequence of tokens is then decoded into human-readable text.
