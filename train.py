@@ -1,3 +1,4 @@
+import time
 import torch
 from mygpt import Transformer
 
@@ -22,6 +23,9 @@ def encode(data, vocab):
 
 def decode(indices, vocab):
     itoa = {i: char for i, char in enumerate(vocab)}
+    for i in indices:
+        print(itoa[i], end='')
+        time.sleep(0.01)
     return ''.join([itoa[i] for i in indices])
 
 
@@ -56,40 +60,42 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
     return losses.mean()
 
 
-torch.manual_seed(1337)
-data = get_data('data/input.txt')
-vocab, vocab_size = get_vocabulary(data)
-train_data, val_data = get_train_val_data(data, vocab)
+if __name__ == '__main__':
+    data_filename = input('dataset filename: ')
 
-device = 'cpu'
-batch_size = 16
-max_iters = 5000
-eval_interval = 100
-eval_iters = 200
-learning_rate = 1e-3
+    torch.manual_seed(1337)
+    data = get_data('data/{}'.format(data_filename))
+    vocab, vocab_size = get_vocabulary(data)
+    train_data, val_data = get_train_val_data(data, vocab)
 
-context_length = 32
+    device = 'cpu'
+    batch_size = 16
+    max_iters = 5000
+    eval_interval = 100
+    eval_iters = 200
+    learning_rate = 1e-3
 
-model = Transformer(vocab_size, context_length=context_length)
-model.to(device)
+    context_length = 32
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    model = Transformer(vocab_size, context_length=context_length)
+    model.to(device)
 
-for iteration in range(max_iters):
-    if iteration % eval_interval == 0 or iteration == max_iters - 1:
-        train_loss = estimate_loss(model, train_data, batch_size, context_length, eval_iters)
-        val_loss = estimate_loss(model, val_data, batch_size, context_length, eval_iters)
-        print(
-            "iteration: {} training loss: {:.3f} validation loss: {:.3f}".format(
-                iteration, train_loss, val_loss
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+
+    for iteration in range(max_iters):
+        if iteration % eval_interval == 0 or iteration == max_iters - 1:
+            train_loss = estimate_loss(model, train_data, batch_size, context_length, eval_iters)
+            val_loss = estimate_loss(model, val_data, batch_size, context_length, eval_iters)
+            print(
+                "iteration: {} training loss: {:.3f} validation loss: {:.3f}".format(
+                    iteration, train_loss, val_loss
+                )
             )
-        )
 
-    x, y = get_batch(train_data, batch_size, context_length)
-    _, loss = model(x, y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        x, y = get_batch(train_data, batch_size, context_length)
+        _, loss = model(x, y)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-context = torch.tensor([[0]])
-print(decode(model.generate(context, max_new_tokens=1000)[0].tolist(), vocab))
+    torch.save(model.state_dict(), 'weights/{}.pth'.format(data_filename))
