@@ -23,7 +23,7 @@ class SelfAttention(nn.Module):
 
         keys = keys.transpose(2, 1)  # (b, h, t)
 
-        # order: the input tensor multiplied by the linear layer
+        # order: the queries tensor multiplied by the keys tensor
         out = queries.bmm(keys)  # (b, t, h) @ (b, h, t) -> (b, t, t)
         out = out / (self.head_size ** 0.5)
 

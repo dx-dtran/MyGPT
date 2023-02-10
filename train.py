@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     context_length = 32
 
-    model = Transformer(vocab_size, context_length=context_length)
+    model = Transformer(vocab_size, n_embd=128, n_head=8, context_length=context_length)
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
