@@ -1,4 +1,3 @@
-import time
 import torch
 from transformer import Transformer
 
@@ -19,14 +18,6 @@ def get_vocabulary(data):
 def encode(data, vocab):
     atoi = {char: i for i, char in enumerate(vocab)}
     return [atoi[char] for char in data]
-
-
-def decode(indices, vocab):
-    itoa = {i: char for i, char in enumerate(vocab)}
-    for i in indices:
-        print(itoa[i], end='')
-        time.sleep(0.01)
-    return ''.join([itoa[i] for i in indices])
 
 
 def get_train_val_data(data, vocab):
