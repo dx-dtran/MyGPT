@@ -10,7 +10,7 @@ eval_interval: the interval for evaluating the model
 learning_rate: the learning rate for the optimizer
 device: the device to run the computations, either 'cpu' or 'cuda'
 eval_iters: the number of iterations to evaluate the model
-n_embd: the number of features in the input or output vector
+d_embed: the number of features in the input or output vector
 n_head: the number of parallel heads in the MultiHeadAttention layer
 n_layer: the number of layers in the transformer model
 dropout: the rate of dropout to apply
