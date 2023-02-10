@@ -15,7 +15,7 @@ class SelfAttention(nn.Module):
         self.register_buffer('mask', torch.tril(torch.ones(context_length, context_length)))
 
     def forward(self, x):
-        _, d_time, _ = x.shape
+        d_batch, d_time, d_emb = x.shape
 
         # order of matrix multiplication: the input tensor multiplied by the linear layer
         queries = self.query_matrix(x)  # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
@@ -30,7 +30,9 @@ class SelfAttention(nn.Module):
         # what's another way to initialize tril here in the forward pass without requiring grad?
         # kind of weird to initialize it in the init method with a context_length shape, when we only need it to be
         # time_dim shape
-        attention_matrix = torch.masked_fill(attention_matrix, self.mask[:d_time, :d_time] == 0.0, float('-inf'))  # (d_batch, d_time, d_time)
+        attention_matrix = torch.masked_fill(
+            attention_matrix, self.mask[:d_time, :d_time] == 0.0, float('-inf')
+            )  # (d_batch, d_time, d_time)
         attention_matrix = F.softmax(attention_matrix, dim=2)
 
         values = self.value_matrix(x)  # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
@@ -45,7 +47,7 @@ class MultiSelfAttention(nn.Module):
         self.linear_proj = nn.Linear(d_qkv * num_heads, d_embed)
 
     def forward(self, x):
-        out = [sa(x) for sa in self.self_attentions]  # (b, t, h)
+        out = [self_attention(x) for self_attention in self.self_attentions]  # (b, t, h)
         out = torch.cat(out, dim=2)  # (b, t, h * num_heads)
         return self.linear_proj(out)  # (b, t, h * num_heads) @ (h * num_heads, c) -> (b, t, c)
 
@@ -84,7 +86,7 @@ class TransformerBlock(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size, context_length=32, d_embed=64, n_head=4, n_layer=4):
+    def __init__(self, vocab_size, context_length=64, d_embed=128, n_head=8, n_layer=4):
         super().__init__()
         self.context_length = context_length
         self.token_embeddings = nn.Embedding(vocab_size, d_embed)
@@ -101,26 +103,13 @@ class Transformer(nn.Module):
         for block in self.blocks:
             emb = block(emb)  # (d_batch, d_time, c)
         norm = self.layer_norm(emb)  # (d_batch, d_time, c)
-        logits = self.linear(norm)  # (d_batch, d_time, c) @ (c, v) -> (d_batch, d_time, v)
-        _, _, v = logits.shape
+        logits = self.linear(norm)  # (d_batch, d_time, c) @ (c, vocab_size) -> (d_batch, d_time, vocab_size)
+        _, _, vocab_size = logits.shape
         if targets is not None:
             # targets original shape = (d_batch, d_time)
-            logits = logits.view(d_batch * d_time, v)
+            logits = logits.view(d_batch * d_time, vocab_size)
             targets = targets.view(d_batch * d_time)
             loss = F.cross_entropy(logits, targets)
             return logits, loss
-        logits = logits.view(d_batch * d_time, v)
+        logits = logits.view(d_batch * d_time, vocab_size)
         return logits, None
-
-    def generate(self, idx, max_new_tokens=100):
-        d_batch, d_time = idx.shape
-        result = torch.zeros(1, max_new_tokens)
-        for i in range(max_new_tokens):
-            idx = idx[:, len(idx) - self.context_length:]  # (d_batch, d_time)
-            logits, _ = self(idx)  # (d_batch * d_time, v)
-            probs = F.softmax(logits, dim=1)  # (d_batch * d_time, v)
-            index = torch.multinomial(probs[-1], 1)  # (d_batch * d_time, v)
-            index = index.view(d_batch, d_time)  # (d_batch, d_time)
-            idx = torch.cat((idx, index), dim=1)
-            result[:, i] = index
-        return result

@@ -63,7 +63,7 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
 if __name__ == '__main__':
     data_filename = input('dataset filename: ')
 
-    torch.manual_seed(1337)
+    torch.manual_seed(3)
     data = get_data('data/{}'.format(data_filename))
     vocab, vocab_size = get_vocabulary(data)
     train_data, val_data = get_train_val_data(data, vocab)
@@ -75,9 +75,9 @@ if __name__ == '__main__':
     eval_iters = 200
     learning_rate = 1e-3
 
-    context_length = 32
+    context_length = 64
 
-    model = Transformer(vocab_size, context_length=context_length, d_embed=128, n_head=8)
+    model = Transformer(vocab_size)
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
