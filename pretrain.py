@@ -1,30 +1,14 @@
 import torch
 from transformer import Transformer
+from generate import generate
+from tokenizer import Tokenizer, get_data, get_vocabulary
 
 
-def get_data(filename):
-    with open(filename, 'r') as input_file:
-        input_data = input_file.read()
-    return input_data
-
-
-def get_vocabulary(data):
-    vocab = set(data)
-    sorted_vocab = sorted(list(vocab))
-    vocab_size = len(sorted_vocab)
-    return sorted_vocab, vocab_size
-
-
-def encode(data, vocab):
-    atoi = {char: i for i, char in enumerate(vocab)}
-    return [atoi[char] for char in data]
-
-
-def get_train_val_data(data, vocab):
-    data_tensor = torch.tensor(encode(data, vocab))
-    n = int(len(data_tensor) * 0.9)
-    train_data = data_tensor[:n]
-    val_data = data_tensor[n:]
+def get_train_val_data(tokenizer, data, train_val_split=0.9):
+    data_tensor = tokenizer.encode(data)
+    n = int(data_tensor.shape[1] * train_val_split)
+    train_data = data_tensor[0][:n]
+    val_data = data_tensor[0][n:]
     return train_data, val_data
 
 
@@ -57,31 +41,37 @@ if __name__ == '__main__':
     torch.manual_seed(3)
     data = get_data('data/{}'.format(data_filename))
     vocab, vocab_size = get_vocabulary(data)
-    train_data, val_data = get_train_val_data(data, vocab)
+
+    tokenizer = Tokenizer(vocab)
+    train_data, val_data = get_train_val_data(tokenizer, data)
 
     device = 'cpu'
     batch_size = 16
     max_iters = 5000
     eval_interval = 100
-    eval_iters = 200
+    eval_iters = 100
     learning_rate = 1e-3
 
     context_length = 64
 
-    model = Transformer(vocab_size)
+    model = Transformer(vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4)
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     for iteration in range(max_iters):
-        if iteration % eval_interval == 0 or iteration == max_iters - 1:
+        if iteration == 0 or iteration % eval_interval == 0 or iteration == max_iters - 1:
             train_loss = estimate_loss(model, train_data, batch_size, context_length, eval_iters)
             val_loss = estimate_loss(model, val_data, batch_size, context_length, eval_iters)
+            print("============================================================")
             print(
                 "iteration: {} training loss: {:.3f} validation loss: {:.3f}".format(
                     iteration, train_loss, val_loss
                 )
             )
+            print("============================================================", end='\n')
+            context = torch.tensor([[0]])
+            generate(model, context, tokenizer, max_new_tokens=200)
 
         x, y = get_batch(train_data, batch_size, context_length)
         _, loss = model(x, y)
@@ -89,4 +79,4 @@ if __name__ == '__main__':
         loss.backward()
         optimizer.step()
 
-    torch.save(model.state_dict(), 'weights/{}.pth'.format(data_filename))
+    # torch.save(model.state_dict(), 'weights/{}.pth'.format(data_filename))
