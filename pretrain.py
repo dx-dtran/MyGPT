@@ -1,7 +1,6 @@
 import torch
 from transformer import Transformer
-from generate import generate
-from tokenizer import Tokenizer, get_data, get_vocabulary
+from generate import Tokenizer, generate, get_vocabulary
 
 
 def get_train_val_data(tokenizer, data, train_val_split=0.9):
@@ -33,6 +32,12 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
         losses[iteration] = loss
     model.train()
     return losses.mean()
+
+
+def get_data(filename):
+    with open(filename, 'r') as input_file:
+        input_data = input_file.read()
+    return input_data
 
 
 if __name__ == '__main__':

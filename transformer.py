@@ -7,8 +7,8 @@ class SelfAttention(nn.Module):
     def __init__(self, context_length, d_embed, d_qkv):
         super().__init__()
         self.d_qkv = d_qkv
-        self.key_matrix = nn.Linear(d_embed, d_qkv, bias=False)
         self.query_matrix = nn.Linear(d_embed, d_qkv, bias=False)
+        self.key_matrix = nn.Linear(d_embed, d_qkv, bias=False)
         self.value_matrix = nn.Linear(d_embed, d_qkv, bias=False)
 
         # context_length is the context length (time dimension) that we want to mask
