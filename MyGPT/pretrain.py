@@ -7,11 +7,11 @@ from vocab import Tokenizer, create_vocabulary, save_vocabulary
 
 def get_data(filename):
     try:
-        with open(filename, 'r') as input_file:
+        with open(filename, "r") as input_file:
             input_data = input_file.read()
             return input_data
     except FileNotFoundError:
-        print('data file not found')
+        print("data file not found")
 
 
 def get_train_val_data(tokenizer, data, train_val_split=0.9):
@@ -27,8 +27,8 @@ def get_batch(data, batch_size, context_length):
     y = []
     for i in range(batch_size):
         index = torch.randint(0, len(data) - context_length - 1, (1,))
-        x.append(data[index:index + context_length])
-        y.append(data[index + 1:index + context_length + 1])
+        x.append(data[index : index + context_length])
+        y.append(data[index + 1 : index + context_length + 1])
     x = torch.stack(x)
     y = torch.stack(y)
     return x, y
@@ -45,23 +45,23 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
     return losses.mean()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # data_filename = input('dataset filename: ')
-    data_filename = 'math.txt'
+    data_filename = "math.txt"
 
     torch.manual_seed(3)
 
-    data_path = os.path.join('data', data_filename)
+    data_path = os.path.join("data", data_filename)
     raw_data = get_data(data_path)
     vocab, vocab_size = create_vocabulary(raw_data)
 
-    vocab_path = os.path.join('weights', 'vocab.json')
+    vocab_path = os.path.join("weights", "vocab.json")
     save_vocabulary(vocab_path, data_filename, vocab)
 
     tokenizer = Tokenizer(vocab)
     train_data, val_data = get_train_val_data(tokenizer, raw_data)
 
-    device = 'cpu'
+    device = "cpu"
     batch_size = 16
     max_iters = 5000
     eval_interval = 100
@@ -70,19 +70,25 @@ if __name__ == '__main__':
 
     context_length = 64
 
-    mygpt = Transformer(vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4)
+    mygpt = Transformer(
+        vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4
+    )
     mygpt.to(device)
 
     num_params = sum(param.numel() for param in mygpt.parameters())
-    print('mygpt {} parameter model initialized'.format(num_params))
+    print("mygpt {} parameter model initialized".format(num_params))
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 
-    print('begin training using {}'.format(device))
+    print("begin training using {}".format(device))
     for iteration in range(max_iters):
-        if iteration == 0 or iteration % eval_interval == 0 or iteration == max_iters - 1:
-            train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
-            val_loss = estimate_loss(mygpt, val_data, batch_size, context_length, eval_iters)
+        if iteration % eval_interval == 0 or iteration == max_iters - 1:
+            train_loss = estimate_loss(
+                mygpt, train_data, batch_size, context_length, eval_iters
+            )
+            val_loss = estimate_loss(
+                mygpt, val_data, batch_size, context_length, eval_iters
+            )
             print("\n================================================================")
             print(
                 "iteration: {} | training loss: {:.3f} | validation loss: {:.3f}".format(

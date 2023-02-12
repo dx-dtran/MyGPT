@@ -11,30 +11,30 @@ def create_vocabulary(data):
 
 def save_vocabulary(filename, vocab_id, vocab):
     try:
-        with open(filename, 'r') as vocab_file:
+        with open(filename, "r") as vocab_file:
             vocab_dict = json.load(vocab_file)
     except FileNotFoundError:
         vocab_dict = {}
 
     if vocab_id not in vocab_dict:
-        obj = {'vocab': vocab, 'vocab_size': len(vocab)}
+        obj = {"vocab": vocab, "vocab_size": len(vocab)}
         vocab_dict[vocab_id] = obj
-        with open(filename, 'w') as vocab_file:
+        with open(filename, "w") as vocab_file:
             json.dump(vocab_dict, vocab_file)
-            print('new vocab has been saved')
+            print("new vocab has been saved")
     else:
-        print('vocab has already been saved')
+        print("vocab has already been saved")
 
 
 def get_vocabulary(vocab_filename, vocab_id):
     try:
-        with open(vocab_filename, 'r') as vocab_file:
+        with open(vocab_filename, "r") as vocab_file:
             vocab_dict = json.load(vocab_file)
-            return vocab_dict[vocab_id]['vocab'], vocab_dict[vocab_id]['vocab_size']
+            return vocab_dict[vocab_id]["vocab"], vocab_dict[vocab_id]["vocab_size"]
     except FileNotFoundError:
-        print('vocab file not found')
+        print("vocab file not found")
     except KeyError:
-        print('vocab id not found in file')
+        print("vocab id not found in file")
 
 
 class Tokenizer:
@@ -49,4 +49,4 @@ class Tokenizer:
 
     def decode(self, indices):
         itoa = {i: char for i, char in enumerate(self.vocab)}
-        return ''.join(itoa[index] for index in indices)
+        return "".join(itoa[index] for index in indices)
