@@ -1,6 +1,13 @@
 import torch
 from transformer import Transformer
-from generate import Tokenizer, generate, get_vocabulary
+from generate import generate
+from vocab import Tokenizer, create_vocabulary, save_vocabulary
+
+
+def get_data(filename):
+    with open(filename, 'r') as input_file:
+        input_data = input_file.read()
+    return input_data
 
 
 def get_train_val_data(tokenizer, data, train_val_split=0.9):
@@ -34,18 +41,13 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
     return losses.mean()
 
 
-def get_data(filename):
-    with open(filename, 'r') as input_file:
-        input_data = input_file.read()
-    return input_data
-
-
 if __name__ == '__main__':
     data_filename = input('dataset filename: ')
 
     torch.manual_seed(3)
     data = get_data('data/{}'.format(data_filename))
-    vocab, vocab_size = get_vocabulary(data)
+    vocab, vocab_size = create_vocabulary(data)
+    save_vocabulary('weights/vocab.json', data_filename, vocab)
 
     tokenizer = Tokenizer(vocab)
     train_data, val_data = get_train_val_data(tokenizer, data)
@@ -68,13 +70,13 @@ if __name__ == '__main__':
         if iteration == 0 or iteration % eval_interval == 0 or iteration == max_iters - 1:
             train_loss = estimate_loss(model, train_data, batch_size, context_length, eval_iters)
             val_loss = estimate_loss(model, val_data, batch_size, context_length, eval_iters)
-            print("============================================================")
+            print("===============================================================")
             print(
-                "iteration: {} training loss: {:.3f} validation loss: {:.3f}".format(
+                "iteration: {} | training loss: {:.3f} | validation loss: {:.3f}".format(
                     iteration, train_loss, val_loss
                 )
             )
-            print("============================================================", end='\n')
+            print("===============================================================", end='\n')
             context = torch.tensor([[0]])
             generate(model, context, tokenizer, max_new_tokens=200)
 
