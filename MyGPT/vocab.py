@@ -1,6 +1,5 @@
-import json
-
 import torch
+import json
 
 
 def create_vocabulary(data):

@@ -9,8 +9,8 @@ def generate(model, prompt, tokenizer, max_new_tokens=500):
     d_batch, _ = prompt.shape
     for i in range(max_new_tokens):
         prompt = prompt[:, len(prompt) - model.context_length:]  # (d_batch, d_time)
-        logits, _ = model(prompt)  # (d_batch * d_time, v)
-        probs = F.softmax(logits, dim=1)  # (d_batch * d_time, v)
+        logits, _ = model(prompt)  # (d_batch * d_time, vocab_size)
+        probs = F.softmax(logits, dim=1)  # (d_batch * d_time, vocab_size)
         index = torch.multinomial(probs[-1], 1)  # (d_batch * d_time, 1)
         index = index.view(d_batch, 1)  # (d_batch, d_time)
         print(tokenizer.decode(index[0].tolist()), end='')
