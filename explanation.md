@@ -1,4 +1,4 @@
-Here's a step-by-step explanation of the code:
+Here's a step-by-step explanation of the code, written by ChatGPT:
 
 The code imports required packages such as torch, torch.nn and functional from torch.nn.
 
