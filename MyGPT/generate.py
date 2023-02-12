@@ -20,7 +20,7 @@ def generate(model, prompt, tokenizer, max_new_tokens=500):
 
 if __name__ == '__main__':
     # data_filename = input('dataset filename: ')
-    data_filename = 'math.txt'
+    data_filename = 'calculus.txt'
 
     vocab, vocab_size = get_vocabulary('weights/vocab.json', data_filename)
 
@@ -31,5 +31,5 @@ if __name__ == '__main__':
 
     for _ in range(20):
         prompt = tokenizer.encode(input('prompt: '))
-        # context = torch.tensor([[0]])
-        generate(model, prompt, tokenizer)
+        # prompt = torch.tensor([[0]])
+        generate(model, prompt, tokenizer, max_new_tokens=5000)

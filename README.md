@@ -1,8 +1,8 @@
 # MyGPT
 
-My implementation of a small language model in PyTorch.
+My implementation of a small language model in PyTorch
 
-Given a sequence of tokens, MyGPT predicts the next token.
+Given a sequence of tokens, MyGPT predicts the next token
 
 ```python
 vocab = ["cat", "hat", "the", "in"]
