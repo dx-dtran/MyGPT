@@ -23,13 +23,13 @@ if __name__ == "__main__":
     # data_filename = input('dataset filename: ')
     data_filename = "math.txt"
 
-    vocab_path = os.path.join("weights", "vocab.json")
+    vocab_path = os.path.join("..", "weights", "vocab.json")
     vocab, vocab_size = get_vocabulary(vocab_path, data_filename)
     tokenizer = Tokenizer(vocab)
 
     mygpt = Transformer(vocab_size)
 
-    weights_path = os.path.join("weights", data_filename + ".pth")
+    weights_path = os.path.join("..", "weights", data_filename + ".pth")
     mygpt.load_state_dict(torch.load(weights_path))
 
     for _ in range(20):

@@ -51,11 +51,11 @@ if __name__ == "__main__":
 
     torch.manual_seed(3)
 
-    data_path = os.path.join("data", data_filename)
+    data_path = os.path.join("..", "data", data_filename)
     raw_data = get_data(data_path)
     vocab, vocab_size = create_vocabulary(raw_data)
 
-    vocab_path = os.path.join("weights", "vocab.json")
+    vocab_path = os.path.join("..", "weights", "vocab.json")
     save_vocabulary(vocab_path, data_filename, vocab)
 
     tokenizer = Tokenizer(vocab)
@@ -105,5 +105,5 @@ if __name__ == "__main__":
         loss.backward()
         optimizer.step()
 
-    # weights_path = os.path.join('weights', data_filename + '.pth')
+    # weights_path = os.path.join("..", "weights", data_filename + ".pth")
     # torch.save(mygpt.state_dict(), weights_path)
