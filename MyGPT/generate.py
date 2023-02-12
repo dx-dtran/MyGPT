@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import os
 
 from vocab import Tokenizer, get_vocabulary
 from transformer import Transformer
@@ -20,17 +21,18 @@ def generate(model, context, tokenizer, num_new_tokens=500):
 
 if __name__ == '__main__':
     # data_filename = input('dataset filename: ')
-    data_filename = 'calculus.txt'
+    data_filename = 'math.txt'
 
-    # todo: use os lib to build the file path
-    vocab, vocab_size = get_vocabulary('weights/vocab.json', data_filename)
-
+    vocab_path = os.path.join('weights', 'vocab.json')
+    vocab, vocab_size = get_vocabulary(vocab_path, data_filename)
     tokenizer = Tokenizer(vocab)
 
     mygpt = Transformer(vocab_size)
-    mygpt.load_state_dict(torch.load('weights/{}.pth'.format(data_filename)))
+
+    weights_path = os.path.join('weights', data_filename + '.pth')
+    mygpt.load_state_dict(torch.load(weights_path))
 
     for _ in range(20):
         prompt = tokenizer.encode(input('PROMPT: '))
         # prompt = torch.tensor([[0]])
-        generate(mygpt, prompt, tokenizer, num_new_tokens=5000)
+        generate(mygpt, prompt, tokenizer, num_new_tokens=2000)

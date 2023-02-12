@@ -1,4 +1,5 @@
 import torch
+import os
 from transformer import Transformer
 from generate import generate
 from vocab import Tokenizer, create_vocabulary, save_vocabulary
@@ -49,9 +50,13 @@ if __name__ == '__main__':
     data_filename = 'math.txt'
 
     torch.manual_seed(3)
-    raw_data = get_data('data/{}'.format(data_filename))
+
+    data_path = os.path.join('data', data_filename)
+    raw_data = get_data(data_path)
     vocab, vocab_size = create_vocabulary(raw_data)
-    save_vocabulary('weights/vocab.json', data_filename, vocab)
+
+    vocab_path = os.path.join('weights', 'vocab.json')
+    save_vocabulary(vocab_path, data_filename, vocab)
 
     tokenizer = Tokenizer(vocab)
     train_data, val_data = get_train_val_data(tokenizer, raw_data)
@@ -68,11 +73,12 @@ if __name__ == '__main__':
     mygpt = Transformer(vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4)
     mygpt.to(device)
 
-    print('mygpt model initialized')
+    num_params = sum(param.numel() for param in mygpt.parameters())
+    print('mygpt {} parameter model initialized'.format(num_params))
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 
-    print('begin training')
+    print('begin training using {}'.format(device))
     for iteration in range(max_iters):
         if iteration == 0 or iteration % eval_interval == 0 or iteration == max_iters - 1:
             train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
@@ -93,4 +99,5 @@ if __name__ == '__main__':
         loss.backward()
         optimizer.step()
 
-    # torch.save(model.state_dict(), 'weights/{}.pth'.format(data_filename))
+    # weights_path = os.path.join('weights', data_filename + '.pth')
+    # torch.save(mygpt.state_dict(), weights_path)
