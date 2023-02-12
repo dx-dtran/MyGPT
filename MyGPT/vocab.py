@@ -21,6 +21,7 @@ def save_vocabulary(filename, vocab_id, vocab):
         vocab_dict[vocab_id] = obj
         with open(filename, 'w') as vocab_file:
             json.dump(vocab_dict, vocab_file)
+            print('new vocab has been saved')
     else:
         print('vocab has already been saved')
 

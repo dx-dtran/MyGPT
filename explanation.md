@@ -39,15 +39,15 @@ The model.train() call sets the model back to training mode before returning the
 A class named "SelfAttention" is defined to implement one head of self-attention. The class has three fully connected layers for the keys, queries, and values.
 The SelfAttention class defines a single attention head in the self-attention mechanism. It has three linear layers - one each for the key, query and value projections.
 The forward method computes the self-attention scores between the query and key representations, performs the softmax normalization, and finally performs the weighted sum of values based on the attention scores.
-Inputs to this class are 3-dimensional tensors of shape (B, T, C), where B is the batch size, T is the length of the input sequence and C is the size of the representation space.
+Inputs to this class are 3-dimensional tensors of shape (d_batch, d_time, d_embed), where d_batch is the batch size, d_time is the length of the input sequence and d_embed is the size of the representation space.
 The output of the SelfAttention class is also a 3-dimensional tensor of the same shape.
 
 A class named "MultiSelfAttention" is defined to implement multiple heads of self-attention in parallel. The class has a list of heads, each implemented as an instance of the "SelfAttention" class.
 The MultiSelfAttention class is a container class that concatenates the outputs of multiple SelfAttention instances. This is used to perform multiple self-attention operations in parallel.
 The class has a list of SelfAttention objects and a linear projection layer.
 The forward method of this class applies all the SelfAttention instances to the input and concatenates their outputs. Finally, it applies the linear projection.
-Inputs to this class are 3-dimensional tensors of shape (B, T, C), where B is the batch size, T is the length of the input sequence and C is the size of the representation space.
-The output of the MultiSelfAttention class is a 3-dimensional tensor of shape (B, T, C), where C is the sum of the size of the representation spaces of all heads.
+Inputs to this class are 3-dimensional tensors of shape (d_batch, d_time, d_embed), where d_batch is the batch size, d_time is the length of the input sequence and d_embed is the size of the representation space.
+The output of the MultiSelfAttention class is a 3-dimensional tensor of shape (d_batch, d_time, d_embed), where d_embed is the sum of the size of the representation spaces of all heads.
 
 The MultiLayerPerceptron class is a simple feedforward neural network with one hidden layer, followed by a ReLU activation function.
 This network transforms its input to produce an output of the same size as the input.
@@ -63,19 +63,19 @@ The model has four main components: token embeddings, position embeddings, a ser
 The token embeddings are a lookup table where each token is mapped to a vector representation.
 The position embeddings also have a lookup table, where each position in the input sequence is mapped to a vector representation.
 The blocks are a sequence of multi-head self-attention layers.
-The final layer normalization (ln_f) and linear layer (lm_head) are applied to the output of the blocks to generate logits for each token in the input sequence.
+The final layer normalization (self.layer_norm) and linear layer (self.linear) are applied to the output of the blocks to generate logits for each token in the input sequence.
 If a target sequence is provided, the loss is calculated using cross-entropy between the logits and the target sequence.
 The generate function takes an input sequence and generates a new sequence by sampling from the model's distribution over the vocabulary.
 The function repeatedly adds new tokens to the input sequence, gets the logits, applies softmax to get probabilities, samples from the probabilities, and appends the new tokens to the input sequence.
 
 The "forward" method of the Transformer class is used to generate the logits for a given input sequence, as well as to calculate the loss if a target sequence is provided. Here's a step-by-step explanation of what the method does:
 
-Unpack the input tensors: The method takes two arguments, "idx" and "targets". "idx" is a tensor with shape (B, T), where B is the batch size and T is the length of the sequence. "targets" is an optional argument with the same shape, representing the target sequence for a supervised learning scenario.
-Token and position embeddings: The method first uses the token_embedding_table to obtain token embeddings for the input sequence. The resulting tensor has shape (B, T, C), where C is the dimension of the embedding space.
-Next, the method uses the position_embedding_table to obtain position embeddings for the input sequence. The resulting tensor has shape (T, C). Finally, the method adds the token and position embeddings to get the final representation of the input sequence with shape (B, T, C).
-Pass through blocks: The final representation is then passed through the blocks, which are a sequence of multi-head self-attention layers. The output of the blocks is a tensor with shape (B, T, C).
-Final layer normalization and linear layer: The method then applies a final layer normalization (ln_f) to the output of the blocks to get a normalized representation. The final representation is then passed through the lm_head linear layer to generate logits for each token in the input sequence. The resulting tensor has shape (B, T, vocab_size).
-Loss calculation: If a target sequence is provided, the method calculates the loss using cross-entropy between the logits and the target sequence. The logits are reshaped to (B * T, C) and the targets are reshaped to (B * T). The loss is a scalar tensor.
+Unpack the input tensors: The method takes two arguments, "idx" and "targets". "idx" is a tensor with shape (d_batch, d_time), where d_batch is the batch size and d_time is the length of the sequence. "targets" is an optional argument with the same shape, representing the target sequence for a supervised learning scenario.
+Token and position embeddings: The method first uses the token_embedding_table to obtain token embeddings for the input sequence. The resulting tensor has shape (d_batch, d_time, d_embed), where d_embed is the dimension of the embedding space.
+Next, the method uses the position_embedding_table to obtain position embeddings for the input sequence. The resulting tensor has shape (d_time, d_embed). Finally, the method adds the token and position embeddings to get the final representation of the input sequence with shape (d_batch, d_time, d_embed).
+Pass through blocks: The final representation is then passed through the blocks, which are a sequence of multi-head self-attention layers. The output of the blocks is a tensor with shape (d_batch, d_time, d_embed).
+Final layer normalization and linear layer: The method then applies a final layer normalization (self.layer_norm) to the output of the blocks to get a normalized representation. The final representation is then passed through the self.linear linear layer to generate logits for each token in the input sequence. The resulting tensor has shape (d_batch, d_time, vocab_size).
+Loss calculation: If a target sequence is provided, the method calculates the loss using cross-entropy between the logits and the target sequence. The logits are reshaped to (d_batch * d_time, d_embed) and the targets are reshaped to (d_batch * d_time). The loss is a scalar tensor.
 Return logits and loss: Finally, the method returns both the logits and the loss (if provided).
 
 This is the code for a generate method for a language model.

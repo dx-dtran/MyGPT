@@ -33,7 +33,7 @@ for _ in range(num_tokens_to_predict):
 
 ```
 
-See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for sample text MyGPT produced
+See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for sample text MyGPT produced after ~10 minutes of training on CPU
 
 ### GPT?
 

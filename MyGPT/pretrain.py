@@ -5,9 +5,12 @@ from vocab import Tokenizer, create_vocabulary, save_vocabulary
 
 
 def get_data(filename):
-    with open(filename, 'r') as input_file:
-        input_data = input_file.read()
-    return input_data
+    try:
+        with open(filename, 'r') as input_file:
+            input_data = input_file.read()
+            return input_data
+    except FileNotFoundError:
+        print('data file not found')
 
 
 def get_train_val_data(tokenizer, data, train_val_split=0.9):
@@ -42,15 +45,16 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
 
 
 if __name__ == '__main__':
-    data_filename = input('dataset filename: ')
+    # data_filename = input('dataset filename: ')
+    data_filename = 'math.txt'
 
     torch.manual_seed(3)
-    data = get_data('data/{}'.format(data_filename))
-    vocab, vocab_size = create_vocabulary(data)
+    raw_data = get_data('data/{}'.format(data_filename))
+    vocab, vocab_size = create_vocabulary(raw_data)
     save_vocabulary('weights/vocab.json', data_filename, vocab)
 
     tokenizer = Tokenizer(vocab)
-    train_data, val_data = get_train_val_data(tokenizer, data)
+    train_data, val_data = get_train_val_data(tokenizer, raw_data)
 
     device = 'cpu'
     batch_size = 16
@@ -61,27 +65,30 @@ if __name__ == '__main__':
 
     context_length = 64
 
-    model = Transformer(vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4)
-    model.to(device)
+    mygpt = Transformer(vocab_size, context_length=context_length, d_embed=32, n_head=4, n_layer=4)
+    mygpt.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    print('mygpt model initialized')
 
+    optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
+
+    print('begin training')
     for iteration in range(max_iters):
         if iteration == 0 or iteration % eval_interval == 0 or iteration == max_iters - 1:
-            train_loss = estimate_loss(model, train_data, batch_size, context_length, eval_iters)
-            val_loss = estimate_loss(model, val_data, batch_size, context_length, eval_iters)
-            print("===============================================================")
+            train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
+            val_loss = estimate_loss(mygpt, val_data, batch_size, context_length, eval_iters)
+            print("\n================================================================")
             print(
                 "iteration: {} | training loss: {:.3f} | validation loss: {:.3f}".format(
                     iteration, train_loss, val_loss
                 )
             )
-            print("===============================================================", end='\n')
+            print("================================================================\n")
             context = torch.tensor([[0]])
-            generate(model, context, tokenizer, max_new_tokens=200)
+            generate(mygpt, context, tokenizer, num_new_tokens=200)
 
         x, y = get_batch(train_data, batch_size, context_length)
-        _, loss = model(x, y)
+        _, loss = mygpt(x, y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
