@@ -29,10 +29,10 @@ class SelfAttention(nn.Module):
 
         # what's another way to initialize tril here in the forward pass without requiring grad?
         # kind of weird to initialize it in the init method with a context_length shape, when we only need it to be
-        # time_dim shape
+        # d_time shape
         attention_matrix = torch.masked_fill(
             attention_matrix, self.mask[:d_time, :d_time] == 0.0, float('-inf')
-            )  # (d_batch, d_time, d_time)
+        )  # (d_batch, d_time, d_time)
         attention_matrix = F.softmax(attention_matrix, dim=2)
 
         values = self.value_matrix(x)  # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
@@ -47,9 +47,11 @@ class MultiSelfAttention(nn.Module):
         self.linear_proj = nn.Linear(d_qkv * num_heads, d_embed)
 
     def forward(self, x):
-        out = [self_attention(x) for self_attention in self.self_attentions]  # (b, t, h)
-        out = torch.cat(out, dim=2)  # (b, t, h * num_heads)
-        return self.linear_proj(out)  # (b, t, h * num_heads) @ (h * num_heads, c) -> (b, t, c)
+        out = [self_attention(x) for self_attention in self.self_attentions]  # (d_batch, d_time, h)
+        out = torch.cat(out, dim=2)  # (d_batch, d_time, h * num_heads)
+        return self.linear_proj(
+            out
+        )  # (d_batch, d_time, h * num_heads) @ (h * num_heads, d_embed) -> (d_batch, d_time, d_embed)
 
 
 class MultiLayerPerceptron(nn.Module):
@@ -60,10 +62,14 @@ class MultiLayerPerceptron(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        out = self.linear_proj1(x)  # (b, t, c) @ (b, c, c * 4) -> (b, t, c * 4)
-        out = self.relu(out)  # (b, t, c * 4)
-        out = self.linear_proj2(out)  # (b, t, c * 4) @ (b, c * 4, c) -> (b, t, c)
-        return out  # (b, t, c)
+        hidden = self.linear_proj1(
+            x
+        )  # (d_batch, d_time, d_embed) @ (d_batch, d_embed, d_embed * 4) -> (d_batch, d_time, d_embed * 4)
+        hidden = self.relu(hidden)  # (d_batch, d_time, d_embed * 4)
+        out = self.linear_proj2(
+            hidden
+        )  # (d_batch, d_time, d_embed * 4) @ (d_batch, d_embed * 4, d_embed) -> (d_batch, d_time, d_embed)
+        return out  # (d_batch, d_time, d_embed)
 
 
 class TransformerBlock(nn.Module):
@@ -75,14 +81,14 @@ class TransformerBlock(nn.Module):
         self.layer_norm2 = nn.LayerNorm(d_embed)
 
     def forward(self, x):
-        attention = self.layer_norm1(x)  # (b, t, c)
-        attention = self.attention(attention)  # (b, t, c)
-        attention = x + attention  # (b, t, c)
+        attention = self.layer_norm1(x)  # (d_batch, d_time, d_embed)
+        attention = self.attention(attention)  # (d_batch, d_time, d_embed)
+        attention = x + attention  # (d_batch, d_time, d_embed)
 
-        mlp = self.layer_norm2(attention)  # (b, t, c)
-        mlp = self.mlp(mlp)  # (b, t, c)
-        mlp = attention + mlp  # (b, t, c)
-        return mlp  # (b, t, c)
+        mlp = self.layer_norm2(attention)  # (d_batch, d_time, d_embed)
+        mlp = self.mlp(mlp)  # (d_batch, d_time, d_embed)
+        mlp = attention + mlp  # (d_batch, d_time, d_embed)
+        return mlp  # (d_batch, d_time, d_embed)
 
 
 class Transformer(nn.Module):
@@ -97,13 +103,15 @@ class Transformer(nn.Module):
 
     def forward(self, indices, targets=None):
         d_batch, d_time = indices.shape
-        tok_emb = self.token_embeddings(indices)  # (d_batch, d_time, c)
-        pos_emb = self.positional_embeddings(torch.arange(0, d_time))  # (d_time, c)
-        emb = tok_emb + pos_emb  # (d_batch, d_time, c)
+        token_embedding = self.token_embeddings(indices)  # (d_batch, d_time, d_embed)
+        positional_embedding = self.positional_embeddings(torch.arange(0, d_time))  # (d_time, d_embed)
+        embedding = token_embedding + positional_embedding  # (d_batch, d_time, d_embed)
         for block in self.blocks:
-            emb = block(emb)  # (d_batch, d_time, c)
-        norm = self.layer_norm(emb)  # (d_batch, d_time, c)
-        logits = self.linear(norm)  # (d_batch, d_time, c) @ (c, vocab_size) -> (d_batch, d_time, vocab_size)
+            embedding = block(embedding)  # (d_batch, d_time, d_embed)
+        normalized = self.layer_norm(embedding)  # (d_batch, d_time, d_embed)
+        logits = self.linear(
+            normalized
+        )  # (d_batch, d_time, d_embed) @ (d_embed, vocab_size) -> (d_batch, d_time, vocab_size)
         _, _, vocab_size = logits.shape
         if targets is not None:
             # targets original shape = (d_batch, d_time)
