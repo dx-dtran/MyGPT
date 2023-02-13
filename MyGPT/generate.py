@@ -23,16 +23,19 @@ if __name__ == "__main__":
     # data_filename = input('dataset filename: ')
     data_filename = "math.txt"
 
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
+
     vocab_path = os.path.join("..", "weights", "vocab.json")
     vocab, vocab_size = get_vocabulary(vocab_path, data_filename)
-    tokenizer = Tokenizer(vocab)
+    tokenizer = Tokenizer(vocab, device)
 
-    mygpt = Transformer(vocab_size)
+    mygpt = Transformer(vocab_size, device)
 
     weights_path = os.path.join("..", "weights", data_filename + ".pth")
     mygpt.load_state_dict(torch.load(weights_path))
 
     for _ in range(20):
         prompt = tokenizer.encode(input("PROMPT: "))
-        # prompt = torch.tensor([[0]])
+        # prompt = torch.tensor([[0]], device=device)
         generate(mygpt, prompt, tokenizer, num_new_tokens=2000)

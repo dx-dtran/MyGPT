@@ -38,14 +38,15 @@ def get_vocabulary(vocab_filename, vocab_id):
 
 
 class Tokenizer:
-    def __init__(self, vocab):
+    def __init__(self, vocab, device):
         self.vocab = vocab
         self.vocab_size = len(vocab)
+        self.device = device
 
     def encode(self, words):
         atoi = {char: i for i, char in enumerate(self.vocab)}
         encoded_chars = [atoi[char] for char in words]
-        return torch.tensor(encoded_chars).unsqueeze(0)
+        return torch.tensor(encoded_chars, device=self.device).unsqueeze(0)
 
     def decode(self, indices):
         itoa = {i: char for i, char in enumerate(self.vocab)}

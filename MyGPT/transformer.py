@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class SelfAttention(nn.Module):
-    def __init__(self, context_length, d_embed, d_qkv):
+    def __init__(self, context_length, d_embed, d_qkv, device):
         super().__init__()
         self.d_qkv = d_qkv
         self.query_matrix = nn.Linear(d_embed, d_qkv, bias=False)
@@ -13,7 +13,8 @@ class SelfAttention(nn.Module):
 
         # context_length is the context length (time dimension) that we want to mask
         self.register_buffer(
-            "mask", torch.tril(torch.ones(context_length, context_length))
+            "mask",
+            torch.tril(torch.ones(context_length, context_length, device=device)),
         )
 
     def forward(self, x):
@@ -49,10 +50,13 @@ class SelfAttention(nn.Module):
 
 
 class MultiSelfAttention(nn.Module):
-    def __init__(self, context_length, d_embed, d_qkv, num_heads):
+    def __init__(self, context_length, d_embed, d_qkv, num_heads, device):
         super().__init__()
         self.self_attentions = nn.ModuleList(
-            [SelfAttention(context_length, d_embed, d_qkv) for _ in range(num_heads)]
+            [
+                SelfAttention(context_length, d_embed, d_qkv, device)
+                for _ in range(num_heads)
+            ]
         )
         self.linear_proj = nn.Linear(d_qkv * num_heads, d_embed)
 
@@ -85,10 +89,10 @@ class MultiLayerPerceptron(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, context_length, d_embed, n_head):
+    def __init__(self, context_length, d_embed, n_head, device):
         super().__init__()
         self.attention = MultiSelfAttention(
-            context_length, d_embed, d_embed // n_head, n_head
+            context_length, d_embed, d_embed // n_head, n_head, device
         )
         self.mlp = MultiLayerPerceptron(d_embed)
         self.layer_norm1 = nn.LayerNorm(d_embed)
@@ -106,13 +110,19 @@ class TransformerBlock(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, vocab_size, context_length=64, d_embed=128, n_head=8, n_layer=4):
+    def __init__(
+        self, vocab_size, device, context_length=64, d_embed=128, n_head=8, n_layer=4
+    ):
         super().__init__()
+        self.device = device
         self.context_length = context_length
         self.token_embeddings = nn.Embedding(vocab_size, d_embed)
         self.positional_embeddings = nn.Embedding(context_length, d_embed)
         self.blocks = nn.ModuleList(
-            [TransformerBlock(context_length, d_embed, n_head) for _ in range(n_layer)]
+            [
+                TransformerBlock(context_length, d_embed, n_head, device)
+                for _ in range(n_layer)
+            ]
         )
         self.layer_norm = nn.LayerNorm(d_embed)
         self.linear = nn.Linear(d_embed, vocab_size)
@@ -121,7 +131,7 @@ class Transformer(nn.Module):
         d_batch, d_time = indices.shape
         token_embedding = self.token_embeddings(indices)  # (d_batch, d_time, d_embed)
         positional_embedding = self.positional_embeddings(
-            torch.arange(0, d_time)
+            torch.arange(0, d_time, device=self.device)
         )  # (d_time, d_embed)
         embedding = token_embedding + positional_embedding  # (d_batch, d_time, d_embed)
         for block in self.blocks:
