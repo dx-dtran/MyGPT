@@ -1,0 +1,16 @@
+    batch_size = 64
+    max_iters = 5000
+    eval_interval = 500
+    eval_iters = 200
+    learning_rate = 3e-4
+
+    context_length = 256
+
+    mygpt = Transformer(
+        vocab_size,
+        device,
+        context_length=context_length,
+        d_embed=384,
+        n_head=6,
+        n_layer=6,
+    )
