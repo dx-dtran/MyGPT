@@ -23,8 +23,7 @@ if __name__ == "__main__":
     # data_filename = input('dataset filename: ')
     data_filename = "math.txt"
 
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     vocab_path = os.path.join("..", "weights", "vocab.json")
     vocab, vocab_size = get_vocabulary(vocab_path, data_filename)

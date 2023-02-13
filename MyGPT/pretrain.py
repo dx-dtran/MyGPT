@@ -1,5 +1,6 @@
 import torch
 import os
+import time
 from transformer import Transformer
 from generate import generate
 from vocab import Tokenizer, create_vocabulary, save_vocabulary
@@ -36,6 +37,7 @@ def get_batch(data, device, batch_size, context_length):
     return x, y
 
 
+@torch.no_grad()
 def estimate_loss(model, data, device, batch_size, context_length, eval_iters):
     model.eval()
     losses = torch.zeros(eval_iters)
@@ -53,8 +55,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(3)
 
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     data_path = os.path.join("..", "data", data_filename)
     raw_data = get_data(data_path)
@@ -89,6 +90,7 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 
+    start = time.time()
     print("begin training using {}".format(device))
     for iteration in range(max_iters):
         if iteration % eval_interval == 0 or iteration == max_iters - 1:
@@ -98,13 +100,18 @@ if __name__ == "__main__":
             val_loss = estimate_loss(
                 mygpt, val_data, device, batch_size, context_length, eval_iters
             )
+
+            end = time.time()
+            elapsed = end - start
             print("\n================================================================")
             print(
-                "iteration: {} | training loss: {:.3f} | validation loss: {:.3f}".format(
+                "iteration: {} | training loss: {:0.3f} | validation loss: {:0.3f}".format(
                     iteration, train_loss, val_loss
                 )
             )
+            print("elapsed time: {:0.2f} seconds".format(elapsed))
             print("================================================================\n")
+
             context = torch.tensor([[0]], dtype=torch.long, device=device)
             generate(mygpt, context, tokenizer, num_new_tokens=200)
 
@@ -113,6 +120,10 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+    end = time.time()
+    elapsed = end - start
+    print("total training time: {:0.2f} seconds".format(elapsed))
 
     # weights_path = os.path.join("..", "weights", data_filename + ".pth")
     # torch.save(mygpt.state_dict(), weights_path)
