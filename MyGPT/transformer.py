@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class SelfAttention(nn.Module):
-    def __init__(self, context_length, d_embed, d_qkv, device):
+    def __init__(self, context_length, d_embed, d_qkv):
         super().__init__()
         self.d_qkv = d_qkv
         self.query_matrix = nn.Linear(d_embed, d_qkv, bias=False)
@@ -14,7 +14,7 @@ class SelfAttention(nn.Module):
         # context_length is the context length (time dimension) that we want to mask
         self.register_buffer(
             "mask",
-            torch.tril(torch.ones(context_length, context_length, device=device)),
+            torch.tril(torch.ones(context_length, context_length)),
         )
 
     def forward(self, x):
@@ -50,11 +50,11 @@ class SelfAttention(nn.Module):
 
 
 class MultiSelfAttention(nn.Module):
-    def __init__(self, context_length, d_embed, d_qkv, num_heads, device):
+    def __init__(self, context_length, d_embed, d_qkv, num_heads):
         super().__init__()
         self.self_attentions = nn.ModuleList(
             [
-                SelfAttention(context_length, d_embed, d_qkv, device)
+                SelfAttention(context_length, d_embed, d_qkv)
                 for _ in range(num_heads)
             ]
         )
@@ -89,10 +89,10 @@ class MultiLayerPerceptron(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, context_length, d_embed, n_head, device):
+    def __init__(self, context_length, d_embed, n_head):
         super().__init__()
         self.attention = MultiSelfAttention(
-            context_length, d_embed, d_embed // n_head, n_head, device
+            context_length, d_embed, d_embed // n_head, n_head
         )
         self.mlp = MultiLayerPerceptron(d_embed)
         self.layer_norm1 = nn.LayerNorm(d_embed)
@@ -120,7 +120,7 @@ class Transformer(nn.Module):
         self.positional_embeddings = nn.Embedding(context_length, d_embed)
         self.blocks = nn.ModuleList(
             [
-                TransformerBlock(context_length, d_embed, n_head, device)
+                TransformerBlock(context_length, d_embed, n_head)
                 for _ in range(n_layer)
             ]
         )

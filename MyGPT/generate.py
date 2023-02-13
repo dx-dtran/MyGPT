@@ -27,14 +27,16 @@ if __name__ == "__main__":
 
     vocab_path = os.path.join("..", "weights", "vocab.json")
     vocab, vocab_size = get_vocabulary(vocab_path, data_filename)
-    tokenizer = Tokenizer(vocab, device)
+    tokenizer = Tokenizer(vocab)
 
     mygpt = Transformer(vocab_size, device)
+    mygpt.to(device)
 
     weights_path = os.path.join("..", "weights", data_filename + ".pth")
     mygpt.load_state_dict(torch.load(weights_path))
 
     for _ in range(20):
         prompt = tokenizer.encode(input("PROMPT: "))
+        prompt = torch.tensor(prompt, device=device).unsqueeze(0)
         # prompt = torch.tensor([[0]], device=device)
         generate(mygpt, prompt, tokenizer, num_new_tokens=2000)
