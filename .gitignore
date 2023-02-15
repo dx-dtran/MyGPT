@@ -4,3 +4,4 @@ MATH
 /venv/
 .DS_Store
 /data/
+/.vscode/

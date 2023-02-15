@@ -78,8 +78,8 @@ if __name__ == "__main__":
         vocab_size,
         device,
         context_length=context_length,
-        d_embed=32,
-        n_head=4,
+        d_embed=128,
+        n_head=8,
         n_layer=4,
     )
     mygpt.to(device)
