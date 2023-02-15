@@ -33,7 +33,7 @@ for _ in range(num_tokens_to_predict):
 
 ```
 
-See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for sample text MyGPT produced after ~10 minutes of training on CPU
+See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for sample text MyGPT produced after ~5 minutes of training on an M1 CPU. Predictions were made at the character level
 
 ### GPT?
 
@@ -41,4 +41,5 @@ See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for 
   * It can be thought of as a mathematical function that transforms an input sequence of tokens into a prediction of the next token
 * [pretrain.py](MyGPT/pretrain.py) performs a training loop that improves MyGPT's ability to predict tokens
   * Output text is periodically sampled during training to help visualize predictive ability improvements over time
+  * The weights of the pre-trained model are saved to the [weights folder](https://github.com/dx-dtran/MyGPT/tree/main/weights) and can be loaded for inference
 * [generate.py](MyGPT/generate.py) takes a prompt, feeds it into a pre-trained MyGPT model, and generates text
