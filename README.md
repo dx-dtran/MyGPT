@@ -33,6 +33,8 @@ for _ in range(num_tokens_to_predict):
 
 ```
 
+See the [mygpt notebook](mygpt.ipynb) for a deeper explanation of how MyGPT works
+
 See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for sample text MyGPT produced after ~5 minutes of training on an M1 CPU. Predictions were made at the character level
 
 ### GPT?
