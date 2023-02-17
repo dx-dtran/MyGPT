@@ -10,8 +10,6 @@ class SelfAttention(nn.Module):
         self.query_matrix = nn.Linear(d_embed, d_qkv, bias=False)
         self.key_matrix = nn.Linear(d_embed, d_qkv, bias=False)
         self.value_matrix = nn.Linear(d_embed, d_qkv, bias=False)
-
-        # context_length is the context length (time dimension) that we want to mask
         self.register_buffer(
             "mask",
             torch.tril(torch.ones(context_length, context_length)),
@@ -20,32 +18,30 @@ class SelfAttention(nn.Module):
     def forward(self, x):
         d_batch, d_time, d_emb = x.shape
 
-        # order of matrix multiplication: the input tensor multiplied by the linear layer
-        # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
+        # create two separate linear projections of the same input sequence of tokens, and call them queries and keys
         queries = self.query_matrix(x)
-
-        # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
         keys = self.key_matrix(x)
 
-        keys = keys.transpose(2, 1)  # (d_batch, h, d_time)
-
-        # order: the queries tensor multiplied by the keys tensor
-        # (d_batch, d_time, h) @ (d_batch, h, d_time) -> (d_batch, d_time, d_time)
-        attention_matrix = queries.bmm(keys)
+        # matrix multiply the queries with the keys to create a (num_token by num_token) attention matrix
+        # the attention matrix represents the strength of the relationships between each token in the sequence
+        attention_matrix = queries.bmm(keys.transpose(2, 1))
         attention_matrix = attention_matrix / (self.d_qkv ** 0.5)
 
-        # what's another way to initialize tril here in the forward pass without requiring grad?
-        # kind of weird to initialize it in the init method with a context_length shape, when we only need it to be
-        # d_time shape
+        # mask out future tokens in the sequence so that tokens in the past cannot reason about tokens in the future
         attention_matrix = torch.masked_fill(
             attention_matrix, self.mask[:d_time, :d_time] == 0.0, float("-inf")
-        )  # (d_batch, d_time, d_time)
+        )
+
+        # for each token in the sequence,
+        # find the other token in the sequence that it has the strongest relationship with
         attention_matrix = F.softmax(attention_matrix, dim=2)
 
-        # (d_batch, d_time, d_emb) @ (d_emb, h) -> (d_batch, d_time, h)
+        # create another linear projection of the input sequence of tokens
         values = self.value_matrix(x)
 
-        # (d_batch, d_time, d_time) @ (d_batch, d_time, h) -> (d_batch, d_time, h)
+        # matrix multiply the attention matrix with the values
+        # this has the effect of focusing only on the most important tokens (values) in the sequence
+        # only these salient features are to be propagated forward through the network
         return attention_matrix.bmm(values)
 
 
@@ -61,11 +57,12 @@ class MultiSelfAttention(nn.Module):
         self.linear_proj = nn.Linear(d_qkv * num_heads, d_embed)
 
     def forward(self, x):
+        # the softmax operation in self_attention makes it such that each token focuses on only one other token
+        # repeat the self attention operation to learn the relationships between other tokens as well
         out = [
             self_attention(x) for self_attention in self.self_attentions
-        ]  # (d_batch, d_time, h)
-        out = torch.cat(out, dim=2)  # (d_batch, d_time, h * num_heads)
-        # (d_batch, d_time, h * num_heads) @ (h * num_heads, d_embed) -> (d_batch, d_time, d_embed)
+        ]
+        out = torch.cat(out, dim=2)
         return self.linear_proj(out)
 
 
@@ -77,13 +74,9 @@ class MultiLayerPerceptron(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        # (d_batch, d_time, d_embed) @ (d_batch, d_embed, d_embed * 4) -> (d_batch, d_time, d_embed * 4)
+        # create a transformed representation of the input
         hidden = self.linear_proj1(x)
-
-        # (d_batch, d_time, d_embed * 4)
         hidden = self.relu(hidden)
-
-        # (d_batch, d_time, d_embed * 4) @ (d_batch, d_embed * 4, d_embed) -> (d_batch, d_time, d_embed)
         out = self.linear_proj2(hidden)
         return out
 
@@ -99,19 +92,21 @@ class TransformerBlock(nn.Module):
         self.layer_norm2 = nn.LayerNorm(d_embed)
 
     def forward(self, x):
-        attention = self.layer_norm1(x)  # (d_batch, d_time, d_embed)
-        attention = self.attention(attention)  # (d_batch, d_time, d_embed)
-        attention = x + attention  # (d_batch, d_time, d_embed)
+        # obtain the most important input token features through the attention operations
+        attention = self.layer_norm1(x)
+        attention = self.attention(attention)
+        attention = x + attention
 
-        mlp = self.layer_norm2(attention)  # (d_batch, d_time, d_embed)
-        mlp = self.mlp(mlp)  # (d_batch, d_time, d_embed)
-        mlp = attention + mlp  # (d_batch, d_time, d_embed)
-        return mlp  # (d_batch, d_time, d_embed)
+        # continue to transform and process these salient features
+        mlp = self.layer_norm2(attention)
+        mlp = self.mlp(mlp)
+        mlp = attention + mlp
+        return mlp
 
 
 class Transformer(nn.Module):
     def __init__(
-        self, vocab_size, device, context_length=64, d_embed=128, n_head=8, n_layer=4
+            self, vocab_size, device, context_length=64, d_embed=128, n_head=8, n_layer=4
     ):
         super().__init__()
         self.device = device
@@ -129,23 +124,28 @@ class Transformer(nn.Module):
 
     def forward(self, indices, targets=None):
         d_batch, d_time = indices.shape
-        token_embedding = self.token_embeddings(indices)  # (d_batch, d_time, d_embed)
+
+        # create a representation of the tokens
+        token_embedding = self.token_embeddings(indices)
         positional_embedding = self.positional_embeddings(
             torch.arange(0, d_time, device=self.device)
-        )  # (d_time, d_embed)
-        embedding = token_embedding + positional_embedding  # (d_batch, d_time, d_embed)
-        for block in self.blocks:
-            embedding = block(embedding)  # (d_batch, d_time, d_embed)
-        normalized = self.layer_norm(embedding)  # (d_batch, d_time, d_embed)
+        )
+        embedding = token_embedding + positional_embedding
 
-        # (d_batch, d_time, d_embed) @ (d_embed, vocab_size) -> (d_batch, d_time, vocab_size)
+        # repeatedly transform the representation of the tokens
+        for block in self.blocks:
+            embedding = block(embedding)
+        normalized = self.layer_norm(embedding)
+
+        # linearly project the transformed representation to obtain a score for each token in the vocabulary
         logits = self.linear(normalized)
         _, _, vocab_size = logits.shape
 
         if targets is not None:
-            # targets original shape = (d_batch, d_time)
             logits = logits.view(d_batch * d_time, vocab_size)
             targets = targets.view(d_batch * d_time)
+
+            # calculate the correctness of the scores
             loss = F.cross_entropy(logits, targets)
             return logits, loss
 
