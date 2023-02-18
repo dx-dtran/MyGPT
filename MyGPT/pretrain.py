@@ -1,9 +1,9 @@
 import torch
 import os
 import time
-from transformer import Transformer
-from generate import generate
-from vocab import Tokenizer, create_vocabulary, save_vocabulary
+from MyGPT.transformer import Transformer
+from MyGPT.generate import generate
+from MyGPT.vocab import Tokenizer, create_vocabulary, save_vocabulary
 
 
 def get_data(filename):

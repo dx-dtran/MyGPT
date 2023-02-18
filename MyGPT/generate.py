@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 import os
 
-from vocab import Tokenizer, get_vocabulary
-from transformer import Transformer
+from MyGPT.vocab import Tokenizer, get_vocabulary
+from MyGPT.transformer import Transformer
 
 
 def generate(model, context, tokenizer, num_new_tokens=500):
@@ -21,7 +21,7 @@ def generate(model, context, tokenizer, num_new_tokens=500):
 
 if __name__ == "__main__":
     # data_filename = input('dataset filename: ')
-    data_filename = "math.txt"
+    data_filename = "calculus.txt"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
