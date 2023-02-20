@@ -39,9 +39,9 @@ class SelfAttention(nn.Module):
         # create another linear projection of the input sequence of tokens
         values = self.value_matrix(x)
 
-        # matrix multiply the attention matrix with the values
-        # this has the effect of focusing only on the most important tokens (values) in the sequence
-        # only these salient features are to be propagated forward through the network
+        # matrix multiply the attention matrix (relationship strengths) with the values
+        # this effectively focuses on the most important tokens in the input sequence
+        # this simplification of the input sequence makes it easier to make better predictions
         return attention_matrix.bmm(values)
 
 
@@ -58,7 +58,7 @@ class MultiSelfAttention(nn.Module):
 
     def forward(self, x):
         # the softmax operation in self_attention makes it such that each token focuses on only one other token
-        # repeat the self attention operation to learn the relationships between other tokens as well
+        # repeat the self attention operation multiple times to learn the relationships between other tokens as well
         out = [
             self_attention(x) for self_attention in self.self_attentions
         ]
@@ -74,7 +74,7 @@ class MultiLayerPerceptron(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        # create a transformed representation of the input
+        # transform the input into a simplified representation that makes it easier to make predictions
         hidden = self.linear_proj1(x)
         hidden = self.relu(hidden)
         out = self.linear_proj2(hidden)
@@ -92,12 +92,12 @@ class TransformerBlock(nn.Module):
         self.layer_norm2 = nn.LayerNorm(d_embed)
 
     def forward(self, x):
-        # obtain the most important input token features through the attention operations
+        # use the attention operations to obtain the most important features of the input sequence
         attention = self.layer_norm1(x)
         attention = self.attention(attention)
         attention = x + attention
 
-        # continue to transform and process these salient features
+        # use a multilayer perceptron to further transform and simplify these features
         mlp = self.layer_norm2(attention)
         mlp = self.mlp(mlp)
         mlp = attention + mlp
@@ -125,19 +125,19 @@ class Transformer(nn.Module):
     def forward(self, indices, targets=None):
         d_batch, d_time = indices.shape
 
-        # create a representation of the tokens
+        # create an initial representation (called an "embedding") of the input tokens
         token_embedding = self.token_embeddings(indices)
         positional_embedding = self.positional_embeddings(
             torch.arange(0, d_time, device=self.device)
         )
         embedding = token_embedding + positional_embedding
 
-        # repeatedly transform the representation of the tokens
+        # repeatedly transform and simplify the representation of the tokens via attention and multilayer perceptron
         for block in self.blocks:
             embedding = block(embedding)
         normalized = self.layer_norm(embedding)
 
-        # linearly project the transformed representation to obtain a score for each token in the vocabulary
+        # project the transformed representation down to a set of scores for each token in the vocabulary
         logits = self.linear(normalized)
         _, _, vocab_size = logits.shape
 
@@ -145,7 +145,7 @@ class Transformer(nn.Module):
             logits = logits.view(d_batch * d_time, vocab_size)
             targets = targets.view(d_batch * d_time)
 
-            # calculate the correctness of the scores
+            # calculate the correctness of the scores by measuring the difference between the scores and the target
             loss = F.cross_entropy(logits, targets)
             return logits, loss
 
