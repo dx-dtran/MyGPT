@@ -84,7 +84,7 @@ class SelfAttention(nn.Module):
         queries = self.query_matrix(x)
         keys = self.key_matrix(x)
 
-        # matrix multiply the queries with the keys to create a (num_token by num_token) attention matrix
+        # multiply the queries matrix with the keys matrix to create a (num_token by num_token) attention matrix
         # the attention matrix represents the strength of the relationships between each token in the sequence
         attention_matrix = queries.bmm(keys.transpose(2, 1))
         attention_matrix = attention_matrix / (self.d_qkv ** 0.5)
@@ -101,7 +101,7 @@ class SelfAttention(nn.Module):
         # create another linear projection of the input sequence of tokens
         values = self.value_matrix(x)
 
-        # matrix multiply the attention matrix (relationship strengths) with the values
+        # multiply the attention matrix (relationship strengths) with the values matrix
         # this effectively focuses on the most important tokens in the input sequence
         # this simplification of the input makes it easier to make better predictions
         return attention_matrix.bmm(values)
@@ -155,7 +155,8 @@ class MultiLayerPerceptron(nn.Module):
 
 class TransformerBlock(nn.Module):
     """
-    TransformerBlock simplifies an input representation through two main mechanisms: attention and multilayer perceptron
+    TransformerBlock connects the attention and multilayer perceptron mechanisms together
+    Attention first reduces the input to its most important tokens, then the MLP further simplifies it
     """
 
     def __init__(self, context_length, d_embed, n_head):
