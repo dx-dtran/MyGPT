@@ -25,14 +25,12 @@ def get_train_val_data(data, tokenizer, device, train_val_split=0.9):
 
 
 def get_batch(data, batch_size, context_length):
-    x = []
-    y = []
+    x, y = [], []
     for i in range(batch_size):
         index = torch.randint(0, len(data) - context_length - 1, (1,))
         x.append(data[index : index + context_length])
         y.append(data[index + 1 : index + context_length + 1])
-    x = torch.stack(x)
-    y = torch.stack(y)
+    x, y = torch.stack(x), torch.stack(y)
     return x, y
 
 
