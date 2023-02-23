@@ -45,3 +45,19 @@ See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for 
   * Output text is periodically sampled during training to help visualize predictive ability improvements over time
   * The weights of the pre-trained model are saved to the [weights folder](https://github.com/dx-dtran/MyGPT/tree/main/weights) and can be loaded for inference
 * [generate.py](MyGPT/generate.py) takes a prompt, feeds it into a pre-trained MyGPT model, and generates text
+
+### Installation
+
+PyTorch is the only dependency
+
+macOS or Linux:
+```shell
+$ python3 -m venv venv
+$ source venv/bin/activate
+$ pip3 install .
+```
+
+For GPU acceleration:
+```shell
+$ pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
+```
