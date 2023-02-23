@@ -50,14 +50,14 @@ See the [output folder](https://github.com/dx-dtran/MyGPT/tree/main/output) for 
 
 PyTorch is the only dependency
 
-macOS or Linux:
+#### macOS or Linux
 ```shell
 $ python3 -m venv venv
 $ source venv/bin/activate
 $ pip install .
 ```
 
-For GPU acceleration:
+#### For GPU acceleration
 ```shell
 $ pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
 ```
