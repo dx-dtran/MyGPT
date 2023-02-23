@@ -3,7 +3,7 @@ import os
 import time
 from MyGPT.transformer import Transformer
 from MyGPT.generate import generate
-from MyGPT.vocab import Tokenizer, create_vocabulary, save_vocabulary
+from MyGPT.vocab import Tokenizer, create_vocabulary
 
 
 def get_data(filename):
@@ -28,8 +28,8 @@ def get_batch(data, batch_size, context_length):
     x, y = [], []
     for i in range(batch_size):
         index = torch.randint(0, len(data) - context_length - 1, (1,))
-        x.append(data[index : index + context_length])
-        y.append(data[index + 1 : index + context_length + 1])
+        x.append(data[index: index + context_length])
+        y.append(data[index + 1: index + context_length + 1])
     x, y = torch.stack(x), torch.stack(y)
     return x, y
 
@@ -46,32 +46,30 @@ def estimate_loss(model, data, batch_size, context_length, eval_iters):
     return losses.mean()
 
 
-if __name__ == "__main__":
-    # data_filename = input('dataset filename: ')
-    data_filename = "math.txt"
-
+def pretrain(data_filename):
     torch.manual_seed(3)
-
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    data_path = os.path.join("..", "data", data_filename)
+    # obtain the dataset
+    data_path = os.path.join("data", data_filename)
     raw_data = get_data(data_path)
+
+    # create the vocabulary
     vocab, vocab_size = create_vocabulary(raw_data)
-
-    vocab_path = os.path.join("..", "weights", "vocab.json")
-    save_vocabulary(vocab_path, data_filename, vocab)
-
     tokenizer = Tokenizer(vocab)
+
+    # convert the raw data to tensors
     train_data, val_data = get_train_val_data(raw_data, tokenizer, device)
 
+    # define the training hyperparameters
     batch_size = 16
     max_iters = 5000
     eval_interval = 100
     eval_iters = 100
     learning_rate = 1e-3
-
     context_length = 64
 
+    # define the model
     mygpt = Transformer(
         vocab_size,
         device,
@@ -83,12 +81,12 @@ if __name__ == "__main__":
     mygpt.to(device)
 
     num_params = sum(param.numel() for param in mygpt.parameters())
-    print("mygpt {} parameter model initialized".format(num_params))
+    print("MyGPT initialized with {} parameters".format(num_params))
+    print("Begin training using {}".format(device))
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 
     start = time.time()
-    print("begin training using {}".format(device))
     for iteration in range(max_iters):
         if iteration % eval_interval == 0 or iteration == max_iters - 1:
             train_loss = estimate_loss(
@@ -98,16 +96,13 @@ if __name__ == "__main__":
                 mygpt, val_data, batch_size, context_length, eval_iters
             )
 
-            end = time.time()
-            elapsed = end - start
-            print("\n================================================================")
+            print("\n===========================================================================================")
             print(
-                "iteration: {} | training loss: {:0.3f} | validation loss: {:0.3f}".format(
-                    iteration, train_loss, val_loss
+                "iteration: {} | training loss: {:0.3f} | validation loss: {:0.3f} | elapsed: {:0.2f} seconds ".format(
+                    iteration, train_loss, val_loss, time.time() - start
                 )
             )
-            print("elapsed time: {:0.2f} seconds".format(elapsed))
-            print("================================================================\n")
+            print("===========================================================================================\n")
 
             context = torch.tensor([[0]], dtype=torch.long, device=device)
             generate(mygpt, context, tokenizer, num_new_tokens=200)
@@ -118,9 +113,8 @@ if __name__ == "__main__":
         loss.backward()
         optimizer.step()
 
-    end = time.time()
-    elapsed = end - start
-    print("total training time: {:0.2f} seconds".format(elapsed))
+    print("Total training time: {:0.2f} seconds".format(time.time() - start))
 
+    # save the model weights
     # weights_path = os.path.join("..", "weights", data_filename + ".pth")
     # torch.save(mygpt.state_dict(), weights_path)
