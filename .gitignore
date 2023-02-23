@@ -5,3 +5,5 @@ MATH
 .DS_Store
 /data/
 /.vscode/
+*.egg-info/
+build/
