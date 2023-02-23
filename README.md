@@ -57,6 +57,13 @@ $ source venv/bin/activate
 $ pip install .
 ```
 
+#### Windows
+```shell
+$ python -m venv env
+$ env\Scripts\activate.bat
+$ pip install .
+```
+
 #### For GPU acceleration
 ```shell
 $ pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
