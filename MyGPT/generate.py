@@ -8,8 +8,8 @@ from MyGPT.transformer import Transformer
 
 def generate_next_token(model, context, tokenizer):
     d_batch, _ = context.shape
-    logits, _ = model(context)  # (d_batch * d_time, vocab_size)
-    probs = F.softmax(logits, dim=1)  # (d_batch * d_time, vocab_size)
+    scores, _ = model(context)  # (d_batch * d_time, vocab_size)
+    probs = F.softmax(scores, dim=1)  # (d_batch * d_time, vocab_size)
     index = torch.multinomial(probs[-1], 1)  # (d_batch * d_time, 1)
     index = index.view(d_batch, 1)  # (d_batch, d_time)
     next_token = tokenizer.decode(index[0].tolist())

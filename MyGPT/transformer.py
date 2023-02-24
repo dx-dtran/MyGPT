@@ -43,19 +43,19 @@ class Transformer(nn.Module):
         normalized = self.layer_norm(embedding)
 
         # project the transformed representation down to a set of scores for each token in the vocabulary
-        logits = self.linear(normalized)
-        _, _, vocab_size = logits.shape
+        scores = self.linear(normalized)
+        _, _, vocab_size = scores.shape
 
         if targets is not None:
-            logits = logits.view(d_batch * d_time, vocab_size)
+            scores = scores.view(d_batch * d_time, vocab_size)
             targets = targets.view(d_batch * d_time)
 
             # calculate the scores' correctness by measuring the difference between the scores and the known target
-            loss = F.cross_entropy(logits, targets)
-            return logits, loss
+            loss = F.cross_entropy(scores, targets)
+            return scores, loss
 
-        logits = logits.view(d_batch * d_time, vocab_size)
-        return logits, None
+        scores = scores.view(d_batch * d_time, vocab_size)
+        return scores, None
 
 
 class SelfAttention(nn.Module):
@@ -113,15 +113,15 @@ class MultiSelfAttention(nn.Module):
     It identifies complex relationships that may have been missed if attention had only been performed once
     """
 
-    def __init__(self, context_length, d_embed, d_qkv, num_heads):
+    def __init__(self, context_length, d_embed, d_qkv, n_head):
         super().__init__()
         self.self_attentions = nn.ModuleList(
             [
                 SelfAttention(context_length, d_embed, d_qkv)
-                for _ in range(num_heads)
+                for _ in range(n_head)
             ]
         )
-        self.linear_proj = nn.Linear(d_qkv * num_heads, d_embed)
+        self.linear_proj = nn.Linear(d_qkv * n_head, d_embed)
 
     def forward(self, x):
         # repeat the self attention mechanism multiple times to find more relationships between tokens
