@@ -59,8 +59,8 @@ $ pip install .
 
 #### Windows
 ```shell
-$ python -m venv env
-$ env\Scripts\activate.bat
+$ python -m venv venv
+$ venv\Scripts\activate.bat
 $ pip install .
 ```
 

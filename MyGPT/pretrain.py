@@ -1,6 +1,7 @@
 import torch
 import os
 import time
+
 from MyGPT.transformer import Transformer
 from MyGPT.generate import generate
 from MyGPT.vocab import Tokenizer, create_vocabulary
@@ -116,5 +117,6 @@ def pretrain(data_filename):
     print("Total training time: {:0.2f} seconds".format(time.time() - start))
 
     # save the model weights
+
     # weights_path = os.path.join("..", "weights", data_filename + ".pth")
     # torch.save(mygpt.state_dict(), weights_path)
