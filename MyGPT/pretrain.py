@@ -118,5 +118,5 @@ def pretrain(data_filename):
 
     # save the model weights
 
-    # weights_path = os.path.join("..", "weights", data_filename + ".pth")
+    # weights_path = os.path.join("weights", data_filename + ".pth")
     # torch.save(mygpt.state_dict(), weights_path)
