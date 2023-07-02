@@ -55,11 +55,13 @@ def get_batch(split, batch_size, context_length):
 
 
 @torch.no_grad()
-def estimate_loss(model, split, batch_size, context_length, eval_iters=100):
+def estimate_loss(model, split, batch_size, context_length, device, eval_iters=100):
     model.eval()
     losses = torch.zeros(eval_iters)
     for iteration in range(eval_iters):
         x, y = get_batch(split, batch_size, context_length)
+        x = x.to(device)
+        y = y.to(device)
         _, loss = model(x, y)
         losses[iteration] = loss
     model.train()
@@ -110,10 +112,10 @@ def pretrain():
     for iteration in range(max_iters):
         if iteration != 0 and iteration % eval_interval == 0 or iteration == max_iters - 1:
             train_loss = estimate_loss(
-                mygpt, "train", batch_size, context_length, eval_iters
+                mygpt, "train", batch_size, context_length, device, eval_iters
             )
             val_loss = estimate_loss(
-                mygpt, "val", batch_size, context_length, eval_iters
+                mygpt, "val", batch_size, context_length, device, eval_iters
             )
 
             print("\n===========================================================================================")
@@ -130,6 +132,8 @@ def pretrain():
         iter_time = time.time()
 
         x, y = get_batch("train", batch_size, context_length)
+        x = x.to(device)
+        y = y.to(device)
         _, loss = mygpt(x, y)
 
         optimizer.zero_grad()
