@@ -39,7 +39,7 @@ def generate_from_pretrained(data_filename, num_prompts=20, num_tokens=2000):
     # vocab, vocab_size = get_vocabulary(vocab_path, data_filename)
     # tokenizer = Tokenizer(vocab)
 
-    mygpt = Transformer(50304, device, context_length=128, d_embed=128, n_head=2, n_layer=2)
+    mygpt = Transformer(50304, device, context_length=512, d_embed=768, n_head=16, n_layer=8)
     mygpt.to(device)
 
     weights_path = os.path.join("weights", data_filename + ".pth")

@@ -89,16 +89,16 @@ def pretrain():
     eval_interval = 250
     eval_iters = 100
     learning_rate = 1e-3
-    context_length = 128
+    context_length = 512
 
     # define the model
     mygpt = Transformer(
         50304,
         device,
         context_length=context_length,
-        d_embed=128,
-        n_head=2,
-        n_layer=2,
+        d_embed=768,
+        n_head=16,
+        n_layer=8,
     )
     mygpt.to(device)
 
