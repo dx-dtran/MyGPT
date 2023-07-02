@@ -43,7 +43,7 @@ def get_train_val_data(data, device, train_val_split=0.9):
 
 
 def get_batch(split, batch_size, context_length):
-    train_dir = os.path.join("data", "val.bin")
+    train_dir = os.path.join("data", "train.bin")
     val_dir = os.path.join("data", "val.bin")
     train_data = np.memmap(train_dir, dtype=np.uint16, mode='r')
     val_data = np.memmap(val_dir, dtype=np.uint16, mode='r')
