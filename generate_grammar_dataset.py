@@ -20,7 +20,7 @@ from pathlib import Path
 # ── Config ────────────────────────────────────────────────────────────────────
 
 SEED = 42
-TARGET_PAIRS = 3_000
+TARGET_PAIRS = 10_000
 OUTPUT_TXT = "dataset.txt"
 STATS_FILE = "stats.json"
 
