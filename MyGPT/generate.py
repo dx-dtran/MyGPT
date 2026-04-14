@@ -148,7 +148,7 @@ def chat_bike(
             if output_ids and output_ids[-1] == end_id:
                 output_ids = output_ids[:-1]
 
-            print(f"MyGPT: {bpe_decode(output_ids)}\n")
+            print(f"HungryGPT: {bpe_decode(output_ids)}\n")
 
 
 def generate_from_pretrained(data_filename, num_prompts=20, num_tokens=2000):
