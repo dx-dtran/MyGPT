@@ -1,0 +1,11 @@
+{
+  "total_lines": 10000,
+  "total_tokens": 1280000,
+  "total_response_tokens": 99611,
+  "avg_response_tokens": 9.96,
+  "truncated_lines": 0,
+  "unk_tokens": 0,
+  "empty_mask_lines": 0,
+  "max_len": 128,
+  "output_file": "dataset_encoded.jsonl"
+}
