@@ -213,7 +213,6 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
     # Chinchilla-ish sizing for ~100k response tokens:
     # ~200k-param model trained 20 epochs ≈ 20x compute-optimal token budget.
     context_length = 32   # real sequences are ~21 tokens; 128 was mostly padding
-    vocab_size = 761
     d_embed = 64
     n_head = 4
     n_layer = 2
@@ -238,6 +237,9 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
     train_idx = perm[n_val:]
     print(f"Train: {len(train_idx):,}  Val: {len(val_idx):,}")
 
+    id_to_tok, end_id = load_bpe_decoder()
+    vocab_size = len(id_to_tok)
+
     # model sees sequences of length context_length-1 (x = tokens[:, :-1])
     mygpt = Transformer(
         vocab_size=vocab_size,
@@ -251,8 +253,6 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
     n_params = sum(p.numel() for p in mygpt.parameters())
     print(f"Parameters: {n_params:,}")
     print(f"Using device: {device}")
-
-    id_to_tok, end_id = load_bpe_decoder()
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 

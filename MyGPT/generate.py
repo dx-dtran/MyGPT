@@ -31,7 +31,6 @@ def chat_bike(
     weights_path="weights/bike.pth",
     tokenizer_file="tokenizer.json",
     context_length=32,
-    vocab_size=761,
     d_embed=64,
     n_head=4,
     n_layer=2,
@@ -48,6 +47,7 @@ def chat_bike(
     special_tokens = tok_data["special_tokens"]
     special_set = set(special_tokens)
     id_to_tok = {v: k for k, v in vocab.items()}
+    vocab_size = len(vocab)
 
     pad_id  = vocab["[PAD]"]
     unk_id  = vocab["[UNK]"]
