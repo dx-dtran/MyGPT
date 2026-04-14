@@ -150,9 +150,19 @@ def generate_sample(model, prompt_ids, id_to_tok, end_id, device, max_new=20):
         if next_id == end_id:
             break
     model.train()
-    prompt_str = "".join(id_to_tok.get(i, "?") for i in prompt_ids)
-    response_str = "".join(id_to_tok.get(i, "?") for i in output_toks)
-    print(f"  SAMPLE | {prompt_str}{response_str}")
+    special = {"[H]", "[A]", "[END]", "[PAD]", "[UNK]"}
+
+    def detokenize(ids):
+        parts = []
+        for i in ids:
+            tok = id_to_tok.get(i, "?")
+            if tok in special:
+                parts.append(tok)
+            else:
+                parts.append(" " + tok)
+        return "".join(parts).strip()
+
+    print(f"  SAMPLE | {detokenize(prompt_ids)}{detokenize(output_toks)}")
 
 
 # ── JSONL dataset helpers ─────────────────────────────────────────────────────
