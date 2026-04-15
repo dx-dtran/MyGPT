@@ -338,13 +338,13 @@ def train_bike(dataset_file="dataset_encoded.jsonl", log_path="logs/bike.log"):
 
 def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
     context_length = 128
-    d_embed = 128
+    d_embed = 64
     n_head = 4
-    n_layer = 4
+    n_layer = 2
 
     batch_size = 64
-    max_iters = 10000
-    eval_interval = 500
+    max_iters = 3000
+    eval_interval = 50
     eval_iters = 100
     learning_rate = 3e-3
     lr_min = 1e-4
