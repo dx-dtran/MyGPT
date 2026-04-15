@@ -10,6 +10,21 @@ from MyGPT.generate import generate
 from MyGPT.vocab import Tokenizer, create_vocabulary
 
 
+class Logger:
+    """Writes to both stdout and a log file simultaneously."""
+    def __init__(self, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self._file = open(path, "a")
+
+    def log(self, msg=""):
+        print(msg)
+        self._file.write(msg + "\n")
+        self._file.flush()
+
+    def close(self):
+        self._file.close()
+
+
 def get_data(filename):
     try:
         with open(filename, "r") as input_file:
@@ -136,7 +151,8 @@ def load_bpe_decoder(tokenizer_file="tokenizer.json"):
 
 
 @torch.no_grad()
-def generate_sample(model, prompt_ids, id_to_tok, end_id, device, max_new=20):
+def _generate_sample_str(model, prompt_ids, id_to_tok, end_id, device, max_new=20):
+    """Generate a sample and return it as a string (does not print)."""
     model.eval()
     context = torch.tensor([prompt_ids], dtype=torch.long, device=device)
     output_toks = []
@@ -156,13 +172,10 @@ def generate_sample(model, prompt_ids, id_to_tok, end_id, device, max_new=20):
         parts = []
         for i in ids:
             tok = id_to_tok.get(i, "?")
-            if tok in special:
-                parts.append(tok)
-            else:
-                parts.append(" " + tok)
+            parts.append(tok if tok in special else " " + tok)
         return "".join(parts).strip()
 
-    print(f"  SAMPLE | {detokenize(prompt_ids)}{detokenize(output_toks)}")
+    return detokenize(prompt_ids) + detokenize(output_toks)
 
 
 # ── JSONL dataset helpers ─────────────────────────────────────────────────────
@@ -209,7 +222,7 @@ def estimate_jsonl_loss(model, tokens, masks, indices, device, eval_iters, batch
 
 # ── train_bike ────────────────────────────────────────────────────────────────
 
-def train_bike(dataset_file="dataset_encoded.jsonl"):
+def train_bike(dataset_file="dataset_encoded.jsonl", log_path="logs/bike.log"):
     # Chinchilla-ish sizing for ~100k response tokens:
     # ~200k-param model trained 20 epochs ≈ 20x compute-optimal token budget.
     context_length = 32   # real sequences are ~21 tokens; 128 was mostly padding
@@ -228,14 +241,16 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
     torch.manual_seed(42)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    print(f"Loading {dataset_file}...")
+    log = Logger(log_path)
+    log.log(f"=== train_bike started {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+    log.log(f"Loading {dataset_file}...")
     tokens, masks = load_jsonl(dataset_file, context_length)
     N = len(tokens)
     n_val = max(1, int(N * val_split))
     perm = torch.randperm(N)
     val_idx = perm[:n_val]
     train_idx = perm[n_val:]
-    print(f"Train: {len(train_idx):,}  Val: {len(val_idx):,}")
+    log.log(f"Train: {len(train_idx):,}  Val: {len(val_idx):,}")
 
     id_to_tok, end_id = load_bpe_decoder()
     vocab_size = len(id_to_tok)
@@ -251,8 +266,8 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
     ).to(device)
 
     n_params = sum(p.numel() for p in mygpt.parameters())
-    print(f"Parameters: {n_params:,}")
-    print(f"Using device: {device}")
+    log.log(f"Parameters: {n_params:,}")
+    log.log(f"Using device: {device}")
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
 
@@ -289,7 +304,7 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
                 val_loss = estimate_jsonl_loss(
                     mygpt, tokens, masks, val_idx, device, eval_iters, batch_size
                 )
-                print(
+                log.log(
                     "step {:5d} | epoch {:2d} | lr {:.5f} | "
                     "train loss {:.4f} | val loss {:.4f} | {:.1f}s".format(
                         step, epoch, lr, loss.item(), val_loss, time.time() - start
@@ -308,10 +323,108 @@ def train_bike(dataset_file="dataset_encoded.jsonl"):
                     (i for i, m in enumerate(sample_mask) if m == 1.0), len(sample_toks)
                 )
                 prompt_ids = sample_toks[:prompt_end]
-                generate_sample(mygpt, prompt_ids, id_to_tok, end_id, device)
+                sample_text = _generate_sample_str(mygpt, prompt_ids, id_to_tok, end_id, device)
+                log.log(f"  SAMPLE | {sample_text}")
 
             step += 1
 
-    print("\nTotal training time: {:.2f} seconds".format(time.time() - start))
-    print("Best val loss: {:.4f}".format(best_val_loss))
-    print("Weights saved to {}".format(weights_path))
+    log.log("\nTotal training time: {:.2f} seconds".format(time.time() - start))
+    log.log("Best val loss: {:.4f}".format(best_val_loss))
+    log.log("Weights saved to {}".format(weights_path))
+    log.close()
+
+
+# ── train_bike_char ───────────────────────────────────────────────────────────
+
+def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
+    context_length = 128
+    d_embed = 128
+    n_head = 4
+    n_layer = 4
+
+    batch_size = 64
+    max_iters = 10000
+    eval_interval = 500
+    eval_iters = 100
+    learning_rate = 3e-3
+    lr_min = 1e-4
+    train_val_split = 0.9
+
+    torch.manual_seed(42)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    log = Logger(log_path)
+    log.log(f"=== train_bike_char started {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+    log.log(f"Loading {dataset_file}...")
+    raw_data = get_data(dataset_file)
+
+    # build char-level vocabulary and tokenizer
+    vocab, vocab_size = create_vocabulary(raw_data)
+    tokenizer = Tokenizer(vocab)
+    log.log(f"Vocab size: {vocab_size} characters")
+
+    # save vocab so chat can reload it
+    os.makedirs("weights", exist_ok=True)
+    vocab_path = os.path.join("weights", "bike_char_vocab.json")
+    with open(vocab_path, "w") as f:
+        json.dump(vocab, f)
+    log.log(f"Vocab saved to {vocab_path}")
+
+    train_data, val_data = get_train_val_data(raw_data, tokenizer, device, train_val_split)
+    log.log(f"Train tokens: {len(train_data):,}  Val tokens: {len(val_data):,}")
+
+    mygpt = Transformer(
+        vocab_size=vocab_size,
+        device=device,
+        context_length=context_length,
+        d_embed=d_embed,
+        n_head=n_head,
+        n_layer=n_layer,
+    ).to(device)
+
+    n_params = sum(p.numel() for p in mygpt.parameters())
+    log.log(f"Parameters: {n_params:,}")
+    log.log(f"Using device: {device}")
+
+    optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
+    weights_path = os.path.join("weights", "bike_char.pth")
+
+    start = time.time()
+    best_val_loss = float("inf")
+
+    for step in range(max_iters):
+        # cosine LR decay
+        progress = step / max(max_iters - 1, 1)
+        lr = lr_min + 0.5 * (learning_rate - lr_min) * (1 + math.cos(math.pi * progress))
+        for pg in optimizer.param_groups:
+            pg["lr"] = lr
+
+        x, y = get_batch(train_data, batch_size, context_length)
+        _, loss = mygpt(x, y)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if step % eval_interval == 0 or step == max_iters - 1:
+            train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
+            val_loss = estimate_loss(mygpt, val_data, batch_size, context_length, eval_iters)
+            log.log(
+                "step {:5d} | lr {:.5f} | train loss {:.4f} | val loss {:.4f} | {:.1f}s".format(
+                    step, lr, train_loss, val_loss, time.time() - start
+                )
+            )
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(mygpt.state_dict(), weights_path)
+
+            # show a sample generation
+            log._file.write("  SAMPLE | ")
+            log._file.flush()
+            print("  SAMPLE | ", end="")
+            ctx = torch.tensor([[0]], dtype=torch.long, device=device)
+            generate(mygpt, ctx, tokenizer, num_new_tokens=120, log_file=log._file)
+
+    log.log("\nTotal training time: {:.2f} seconds".format(time.time() - start))
+    log.log("Best val loss: {:.4f}".format(best_val_loss))
+    log.log("Weights saved to {}".format(weights_path))
+    log.close()

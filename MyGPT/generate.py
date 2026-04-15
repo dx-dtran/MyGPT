@@ -18,13 +18,18 @@ def generate_next_token(model, context, tokenizer):
     return next_token, index
 
 
-def generate(model, context, tokenizer, num_new_tokens=500):
+def generate(model, context, tokenizer, num_new_tokens=500, log_file=None):
+    chars = []
     for _ in range(num_new_tokens):
         context = context[:, len(context) - model.context_length:]  # (d_batch, d_time)
         next_token, index = generate_next_token(model, context, tokenizer)
-        print(next_token, end="")
+        chars.append(next_token)
         context = torch.cat((context, index), dim=1)
-    print()
+    text = "".join(chars)
+    print(text)
+    if log_file is not None:
+        log_file.write(text + "\n")
+        log_file.flush()
 
 
 def chat_bike(
@@ -149,6 +154,84 @@ def chat_bike(
                 output_ids = output_ids[:-1]
 
             print(f"HungryGPT: {bpe_decode(output_ids)}\n")
+
+
+def chat_bike_char(
+    weights_path="weights/bike_char.pth",
+    vocab_path="weights/bike_char_vocab.json",
+    context_length=128,
+    d_embed=128,
+    n_head=4,
+    n_layer=4,
+    max_new=200,
+    temperature=0.8,
+):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # load char vocab (list of chars in index order)
+    with open(vocab_path, "r") as f:
+        vocab = json.load(f)
+    vocab_size = len(vocab)
+    char_to_id = {ch: i for i, ch in enumerate(vocab)}
+    id_to_char = {i: ch for i, ch in enumerate(vocab)}
+
+    def encode(text):
+        return [char_to_id.get(ch, 0) for ch in text]
+
+    def decode(ids):
+        return "".join(id_to_char.get(i, "?") for i in ids)
+
+    model = Transformer(
+        vocab_size=vocab_size,
+        device=device,
+        context_length=context_length,
+        d_embed=d_embed,
+        n_head=n_head,
+        n_layer=n_layer,
+    ).to(device)
+    model.load_state_dict(torch.load(weights_path, map_location=device))
+    model.eval()
+
+    print(f"MyGPT char-level bike model loaded. Type your question (or 'quit' to exit).\n")
+
+    end_marker = "[END]"
+
+    with torch.no_grad():
+        while True:
+            user_input = input("You: ").strip()
+            if user_input.lower() in ("quit", "exit", "q"):
+                break
+            if not user_input:
+                continue
+
+            user_input = user_input.lower()
+            prompt = f"[H] {user_input} [A]"
+            prompt_ids = encode(prompt)
+
+            # trim prompt to fit context window
+            if len(prompt_ids) >= context_length:
+                prompt_ids = prompt_ids[-(context_length - 1):]
+
+            context = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+            output_chars = []
+
+            for _ in range(max_new):
+                ctx = context[:, -context_length:]
+                scores, _ = model(ctx)
+                logits = scores[-1] / temperature
+                probs = torch.softmax(logits, dim=-1)
+                next_id = torch.multinomial(probs, 1).item()
+                output_chars.append(id_to_char.get(next_id, "?"))
+                context = torch.cat(
+                    [context, torch.tensor([[next_id]], device=device)], dim=1
+                )
+                response_so_far = "".join(output_chars)
+                if end_marker in response_so_far:
+                    response_so_far = response_so_far.split(end_marker)[0]
+                    output_chars = list(response_so_far)
+                    break
+
+            print(f"HungryGPT: {''.join(output_chars).strip()}\n")
 
 
 def generate_from_pretrained(data_filename, num_prompts=20, num_tokens=2000):
