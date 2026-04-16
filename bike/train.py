@@ -178,6 +178,24 @@ def _fmt_flops(flops):
     return f"{flops / 1e9:.1f} GFLOPs"
 
 
+def _fmt_throughput(flops_per_s):
+    g = flops_per_s / 1e9
+    if g >= 1.0:
+        return f"{g:.2f} GFLOPs/s"
+    return f"{g * 1000:.0f} MFLOPs/s"
+
+
+def _fmt_eta(seconds):
+    s = int(seconds)
+    if s <= 0:
+        return "done"
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+
+
 def train():
     context_length = 64
     d_embed = 64
@@ -241,6 +259,8 @@ def train():
     start = time.time()
     best_val_loss = float("inf")
     cumulative_flops = 0
+    window_start = start
+    window_flops = 0
 
     for step in range(max_iters):
         progress = step / max(max_iters - 1, 1)
@@ -255,8 +275,13 @@ def train():
         optimizer.step()
 
         cumulative_flops += flops_per_step
+        window_flops += flops_per_step
 
         if step % eval_interval == 0 or step == max_iters - 1:
+            eval_start = time.time()
+            window_elapsed = max(eval_start - window_start, 1e-6)
+            flops_per_s = window_flops / window_elapsed
+
             train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
             val_loss = estimate_loss(mygpt, val_data, batch_size, context_length, eval_iters)
             saved = val_loss < best_val_loss
@@ -277,15 +302,27 @@ def train():
                     sample_ctx = torch.cat([sample_ctx, torch.tensor([[nxt]], device=device)], dim=1)
                 mygpt.train()
 
+            elapsed = time.time() - start
+            steps_done = step + 1
+            eta_s = (max_iters - steps_done) * (elapsed / steps_done)
+
             tag = " [saved]" if saved else ""
-            log.log("step {}/{} | lr {:.5f} | train {:.4f} | val {:.4f} | {:.1f}s | {}{}".format(
-                step, max_iters, lr, train_loss, val_loss, time.time() - start,
-                _fmt_flops(cumulative_flops), tag
+            log.log("step {}/{} | {} | lr {:.5f} | train {:.4f} | val {:.4f} | {:.1f}s | {} | {} | eta {}{}".format(
+                step, max_iters,
+                time.strftime("%H:%M:%S"),
+                lr, train_loss, val_loss, elapsed,
+                _fmt_flops(cumulative_flops),
+                _fmt_throughput(flops_per_s),
+                _fmt_eta(eta_s),
+                tag
             ))
             log.log("")
             log.log("sample text:")
             log.log("".join(sample_chars))
             log.log("")
+
+            window_start = time.time()
+            window_flops = 0
 
     log.log("total time : {:.1f}s".format(time.time() - start))
     log.log("best val   : {:.4f}".format(best_val_loss))
