@@ -336,14 +336,20 @@ def train_bike(dataset_file="dataset_encoded.jsonl", log_path="logs/bike.log"):
 
 # ── train_bike_char ───────────────────────────────────────────────────────────
 
+def _fmt_flops(flops):
+    if flops >= 1e12:
+        return f"{flops / 1e12:.2f} TFLOPs"
+    return f"{flops / 1e9:.1f} GFLOPs"
+
+
 def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
-    context_length = 128
-    d_embed = 64
+    context_length = 64
+    d_embed = 96
     n_head = 4
-    n_layer = 2
+    n_layer = 3
 
     batch_size = 64
-    max_iters = 3000
+    max_iters = 2000
     eval_interval = 50
     eval_iters = 100
     learning_rate = 3e-3
@@ -354,24 +360,20 @@ def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     log = Logger(log_path)
-    log.log(f"=== train_bike_char started {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+    log.log("=== train_bike_char  {} ===".format(time.strftime("%Y-%m-%d %H:%M:%S")))
+
     log.log(f"Loading {dataset_file}...")
     raw_data = get_data(dataset_file)
 
-    # build char-level vocabulary and tokenizer
     vocab, vocab_size = create_vocabulary(raw_data)
     tokenizer = Tokenizer(vocab)
-    log.log(f"Vocab size: {vocab_size} characters")
 
-    # save vocab so chat can reload it
     os.makedirs("weights", exist_ok=True)
     vocab_path = os.path.join("weights", "bike_char_vocab.json")
     with open(vocab_path, "w") as f:
         json.dump(vocab, f)
-    log.log(f"Vocab saved to {vocab_path}")
 
     train_data, val_data = get_train_val_data(raw_data, tokenizer, device, train_val_split)
-    log.log(f"Train tokens: {len(train_data):,}  Val tokens: {len(val_data):,}")
 
     mygpt = Transformer(
         vocab_size=vocab_size,
@@ -383,17 +385,25 @@ def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
     ).to(device)
 
     n_params = sum(p.numel() for p in mygpt.parameters())
-    log.log(f"Parameters: {n_params:,}")
-    log.log(f"Using device: {device}")
+    flops_per_step = 6 * n_params * batch_size * context_length
+
+    log.log(f"vocab size    : {vocab_size} chars")
+    log.log(f"train tokens  : {len(train_data):,}   val tokens: {len(val_data):,}")
+    log.log(f"parameters    : {n_params:,}")
+    log.log(f"context length: {context_length}   d_embed: {d_embed}   layers: {n_layer}   heads: {n_head}")
+    log.log(f"batch size    : {batch_size}   max iters: {max_iters}   lr: {learning_rate} -> {lr_min}")
+    log.log(f"device        : {device}")
+    log.log(f"flops/step    : {_fmt_flops(flops_per_step)}")
+    log.log("")
 
     optimizer = torch.optim.AdamW(mygpt.parameters(), lr=learning_rate)
     weights_path = os.path.join("weights", "bike_char.pth")
 
     start = time.time()
     best_val_loss = float("inf")
+    cumulative_flops = 0
 
     for step in range(max_iters):
-        # cosine LR decay
         progress = step / max(max_iters - 1, 1)
         lr = lr_min + 0.5 * (learning_rate - lr_min) * (1 + math.cos(math.pi * progress))
         for pg in optimizer.param_groups:
@@ -405,26 +415,44 @@ def train_bike_char(dataset_file="dataset.txt", log_path="logs/bike_char.log"):
         loss.backward()
         optimizer.step()
 
+        cumulative_flops += flops_per_step
+
         if step % eval_interval == 0 or step == max_iters - 1:
             train_loss = estimate_loss(mygpt, train_data, batch_size, context_length, eval_iters)
             val_loss = estimate_loss(mygpt, val_data, batch_size, context_length, eval_iters)
-            log.log(
-                "step {:5d} | lr {:.5f} | train loss {:.4f} | val loss {:.4f} | {:.1f}s".format(
-                    step, lr, train_loss, val_loss, time.time() - start
-                )
-            )
-            if val_loss < best_val_loss:
+            saved = val_loss < best_val_loss
+            if saved:
                 best_val_loss = val_loss
                 torch.save(mygpt.state_dict(), weights_path)
 
-            # show a sample generation
-            log._file.write("  SAMPLE | ")
-            log._file.flush()
-            print("  SAMPLE | ", end="")
             ctx = torch.tensor([[0]], dtype=torch.long, device=device)
-            generate(mygpt, ctx, tokenizer, num_new_tokens=120, log_file=log._file)
+            # capture sample as string
+            sample_chars = []
+            with torch.no_grad():
+                mygpt.eval()
+                sample_ctx = ctx.clone()
+                for _ in range(120):
+                    c = sample_ctx[:, -mygpt.context_length:]
+                    scores, _ = mygpt(c)
+                    probs = torch.softmax(scores[-1], dim=-1)
+                    nxt = torch.multinomial(probs, 1).item()
+                    sample_chars.append(tokenizer.decode([nxt]))
+                    sample_ctx = torch.cat([sample_ctx, torch.tensor([[nxt]], device=device)], dim=1)
+                mygpt.train()
+            sample_text = "".join(sample_chars)
 
-    log.log("\nTotal training time: {:.2f} seconds".format(time.time() - start))
-    log.log("Best val loss: {:.4f}".format(best_val_loss))
-    log.log("Weights saved to {}".format(weights_path))
+            tag = " [saved]" if saved else ""
+            log.log("step {}/{} | lr {:.5f} | train {:.4f} | val {:.4f} | {:.1f}s | {}{}".format(
+                step, max_iters, lr, train_loss, val_loss, time.time() - start,
+                _fmt_flops(cumulative_flops), tag
+            ))
+            log.log("")
+            log.log("sample text:")
+            log.log(sample_text)
+            log.log("")
+
+    log.log("")
+    log.log("total time : {:.1f}s".format(time.time() - start))
+    log.log("best val   : {:.4f}".format(best_val_loss))
+    log.log("weights    : {}".format(weights_path))
     log.close()

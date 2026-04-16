@@ -159,10 +159,10 @@ def chat_bike(
 def chat_bike_char(
     weights_path="weights/bike_char.pth",
     vocab_path="weights/bike_char_vocab.json",
-    context_length=128,
-    d_embed=64,
+    context_length=64,
+    d_embed=96,
     n_head=4,
-    n_layer=2,
+    n_layer=3,
     max_new=200,
     temperature=0.8,
 ):
